@@ -59,7 +59,21 @@ section {
 
     font-size: 2rem;
 }
+/*
+    Displays the current player's turn.
+*/
+#turn-message {
+    font-weight: bold;
+    margin: 15px 0;
+}
 
+/*
+    Makes X and O easy to see inside the cells.
+*/
+.cell {
+    font-weight: bold;
+    color: #222;
+}
 /*
     Simple visual feedback when the mouse
     is placed over a cell.
