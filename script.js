@@ -1,7 +1,7 @@
 
 /*
     Tic Tac Toe
-    Player setup, game rules, and scoreboard.
+    Player setup, game rules, scoreboard, and animations.
 */
 
 // Find the HTML elements we need.
@@ -61,6 +61,16 @@ const winningCombinations = [
     [2, 4, 6]
 ];
 
+// Restart a CSS animation whenever it needs to play again.
+function playAnimation(element, className) {
+    element.classList.remove(className);
+
+    // Force the browser to recognize the removal before re-adding the class.
+    void element.offsetWidth;
+
+    element.classList.add(className);
+}
+
 // Display whose turn it is.
 function updateTurnMessage() {
     turnMessage.textContent =
@@ -114,6 +124,12 @@ function checkDraw() {
     });
 }
 
+// Display a message and animate its appearance.
+function showAnimatedMessage(message) {
+    turnMessage.textContent = message;
+    playAnimation(turnMessage, "win-message");
+}
+
 // Handle a player clicking a cell.
 function handleCellClick(cell) {
     // Prevent moves before setup or after the game ends.
@@ -129,6 +145,9 @@ function handleCellClick(cell) {
     // Place X or O.
     cell.textContent = currentPlayer;
 
+    // Animate the new symbol.
+    playAnimation(cell, "mark-pop");
+
     // Check for a win BEFORE checking for a draw.
     if (checkWinner()) {
         gameOver = true;
@@ -138,8 +157,10 @@ function handleCellClick(cell) {
 
         updateScoreboard();
 
-        turnMessage.textContent =
-            `${playerNames[currentPlayer]} (${currentPlayer}) wins!`;
+        // Show and animate the winning message.
+        showAnimatedMessage(
+            `${playerNames[currentPlayer]} (${currentPlayer}) wins!`
+        );
 
         return;
     }
@@ -151,7 +172,8 @@ function handleCellClick(cell) {
 
         updateScoreboard();
 
-        turnMessage.textContent = "It's a Draw!";
+        // Show and animate the draw message.
+        showAnimatedMessage("It's a Draw!");
 
         return;
     }
@@ -164,12 +186,20 @@ function handleCellClick(cell) {
 
 // Start a new game without resetting the scoreboard.
 function restartGame() {
-    // Clear symbols and any winning highlights.
+    // Clear symbols, animations, and winning highlights.
     cells.forEach(function (cell) {
         cell.textContent = "";
-        cell.classList.remove("winning-cell");
+
+        cell.classList.remove(
+            "winning-cell",
+            "mark-pop"
+        );
+
         cell.disabled = false;
     });
+
+    // Remove the previous message animation.
+    turnMessage.classList.remove("win-message");
 
     // Reset the current game state.
     currentPlayer = "X";

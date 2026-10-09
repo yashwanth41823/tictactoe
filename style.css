@@ -484,3 +484,122 @@ button {
         padding: 11px 14px;
     }
 }
+
+
+/* ==============================
+   Subtle Tic Tac Toe Animations
+   ============================== */
+
+/* Smooth transitions for cells */
+.cell {
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+/* Cell hover effect */
+.cell:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* X and O pop-in animation */
+@keyframes markPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+
+  75% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.cell.mark-pop {
+  animation: markPop 180ms ease-out;
+}
+
+/* Smooth button hover */
+.button,
+button {
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.button:hover:not(:disabled),
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.10);
+}
+
+.button:active:not(:disabled),
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Winning cells: gentle highlight pulse */
+@keyframes winningPulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.04);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cell.winning-cell {
+  animation: winningPulse 420ms ease-in-out 2;
+}
+
+/* Winning message: fade in and move up slightly */
+@keyframes messageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.win-message {
+  animation: messageEnter 240ms ease-out;
+}
+
+/* Keyboard accessibility */
+.cell:focus-visible,
+button:focus-visible,
+.button:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, 0.65);
+  outline-offset: 3px;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
