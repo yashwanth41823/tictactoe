@@ -16,8 +16,6 @@ let currentPlayer = "X";
 let gameOver = false;
 
 // All 8 possible winning combinations.
-// Each number represents a cell position in the cells list,
-// starting from 0 (the first cell).
 const winningCombinations = [
     // Rows
     [0, 1, 2],
@@ -39,13 +37,13 @@ function checkWinner() {
     for (const combination of winningCombinations) {
         const [a, b, c] = combination;
 
-        // A player wins when all 3 cells contain the same symbol.
+        // All 3 cells must contain the current player's symbol.
         if (
             cells[a].textContent === currentPlayer &&
             cells[b].textContent === currentPlayer &&
             cells[c].textContent === currentPlayer
         ) {
-            // Highlight all 3 winning cells.
+            // Highlight the winning cells.
             cells[a].classList.add("winning-cell");
             cells[b].classList.add("winning-cell");
             cells[c].classList.add("winning-cell");
@@ -57,16 +55,23 @@ function checkWinner() {
     return false;
 }
 
-// Add click behavior to each cell.
+// Check whether all 9 cells are occupied.
+function checkDraw() {
+    return Array.from(cells).every(function (cell) {
+        return cell.textContent !== "";
+    });
+}
+
+// Add click behavior to every cell.
 cells.forEach(function (cell) {
     cell.addEventListener("click", function () {
 
-        // Ignore clicks after the game ends.
+        // Stop if the game has already ended.
         if (gameOver) {
             return;
         }
 
-        // Ignore clicks on an already occupied cell.
+        // Do not allow a cell to be selected twice.
         if (cell.textContent !== "") {
             return;
         }
@@ -74,21 +79,28 @@ cells.forEach(function (cell) {
         // Place the current player's symbol.
         cell.textContent = currentPlayer;
 
-        // Check whether this move wins the game.
+        // Check for a win FIRST.
         if (checkWinner()) {
             gameOver = true;
             turnMessage.textContent = `Player ${currentPlayer} wins!`;
             return;
         }
 
-        // Switch to the other player if nobody has won.
+        // Only check for a draw if nobody won.
+        if (checkDraw()) {
+            gameOver = true;
+            turnMessage.textContent = "It's a Draw!";
+            return;
+        }
+
+        // Switch players if the game is still running.
         if (currentPlayer === "X") {
             currentPlayer = "O";
         } else {
             currentPlayer = "X";
         }
 
-        // Update the turn message.
+        // Show whose turn it is.
         turnMessage.textContent = `Player ${currentPlayer}'s turn`;
     });
 });
