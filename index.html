@@ -1,59 +1,158 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
-    <!-- Makes the page responsive on different screen sizes -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>My Tic Tac Toe Game</title>
+    <title>Tic Tac Toe</title>
 
-    <!-- Connect the CSS file -->
     <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
 </head>
 
 <body>
-    <!-- Main content of the application -->
-    <main>
-        <h1>Tic Tac Toe</h1>
+    <main class="app">
+        <header class="page-header">
+            <h1>Tic Tac Toe</h1>
+            <p>Challenge a friend to a game!</p>
+        </header>
 
-        <p>Click a cell to play!</p>
+        <!-- Enter the names of both players. -->
+        <section class="panel" aria-labelledby="setup-heading">
+            <h2 id="setup-heading">Player Setup</h2>
 
-        <!-- Tic Tac Toe game area -->
-<!-- Tic Tac Toe game area -->
-<!-- Tic Tac Toe game area -->
-<section aria-label="Tic Tac Toe game board">
+            <form id="player-form">
+                <div class="form-group">
+                    <label for="player-x-name">Player 1 (X)</label>
+                    <input
+                        id="player-x-name"
+                        name="playerX"
+                        type="text"
+                        placeholder="Enter Player 1's name"
+                        maxlength="30"
+                        autocomplete="off"
+                        required
+                    >
+                </div>
 
-    <h2>Game Board</h2>
+                <div class="form-group">
+                    <label for="player-o-name">Player 2 (O)</label>
+                    <input
+                        id="player-o-name"
+                        name="playerO"
+                        type="text"
+                        placeholder="Enter Player 2's name"
+                        maxlength="30"
+                        autocomplete="off"
+                        required
+                    >
+                </div>
 
-<!-- Button to start a new game -->
-<button id="restart-button" type="button">
-    New Game
-</button>
+                <button class="button button-primary" type="submit">
+                    Start Game
+                </button>
 
-    <!-- Shows which player's turn it is -->
-    <p id="turn-message">Player X's turn</p>
+                <p
+                    id="validation-message"
+                    class="message"
+                    role="alert"
+                    aria-live="polite"
+                ></p>
+            </form>
+        </section>
 
-    <!-- Tic Tac Toe board -->
-    <div class="game-board">
+        <!-- Shows the players and their assigned symbols. -->
+        <section class="panel" aria-labelledby="players-heading">
+            <h2 id="players-heading">Players</h2>
 
-        <button class="cell" aria-label="Cell 1"></button>
-        <button class="cell" aria-label="Cell 2"></button>
-        <button class="cell" aria-label="Cell 3"></button>
+            <div class="player-list">
+                <div class="player-card">
+                    <span class="symbol symbol-x">X</span>
+                    <div>
+                        <p class="player-label">Player X</p>
+                        <p id="display-player-x" class="player-name">
+                            Not set
+                        </p>
+                    </div>
+                </div>
 
-        <button class="cell" aria-label="Cell 4"></button>
-        <button class="cell" aria-label="Cell 5"></button>
-        <button class="cell" aria-label="Cell 6"></button>
+                <div class="player-card">
+                    <span class="symbol symbol-o">O</span>
+                    <div>
+                        <p class="player-label">Player O</p>
+                        <p id="display-player-o" class="player-name">
+                            Not set
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        <button class="cell" aria-label="Cell 7"></button>
-        <button class="cell" aria-label="Cell 8"></button>
-        <button class="cell" aria-label="Cell 9"></button>
+        <!-- Scoreboard: scores are kept while games are restarted. -->
+        <section class="panel" aria-labelledby="scoreboard-heading">
+            <h2 id="scoreboard-heading">Scoreboard</h2>
 
-    </div>
-</section>
+            <div class="scoreboard">
+                <div class="score-card">
+                    <span id="score-x-name" class="score-name">Player X</span>
+                    <span class="score-symbol">X</span>
+                    <strong id="score-x" class="score-value">0</strong>
+                </div>
+
+                <div class="score-card">
+                    <span class="score-name">Draws</span>
+                    <span class="score-symbol">—</span>
+                    <strong id="score-draws" class="score-value">0</strong>
+                </div>
+
+                <div class="score-card">
+                    <span id="score-o-name" class="score-name">Player O</span>
+                    <span class="score-symbol">O</span>
+                    <strong id="score-o" class="score-value">0</strong>
+                </div>
+            </div>
+
+            <button
+                id="reset-scores-button"
+                class="button button-secondary"
+                type="button"
+            >
+                Reset Scores
+            </button>
+        </section>
+
+        <!-- Main game area. -->
+        <section class="panel game-panel" aria-labelledby="game-heading">
+            <h2 id="game-heading">Game Board</h2>
+
+            <p id="turn-message" class="turn-message" aria-live="polite">
+                Enter both player names to start.
+            </p>
+
+            <div class="game-board" role="group" aria-label="Tic Tac Toe board">
+                <button class="cell" type="button" aria-label="Cell 1" disabled></button>
+                <button class="cell" type="button" aria-label="Cell 2" disabled></button>
+                <button class="cell" type="button" aria-label="Cell 3" disabled></button>
+
+                <button class="cell" type="button" aria-label="Cell 4" disabled></button>
+                <button class="cell" type="button" aria-label="Cell 5" disabled></button>
+                <button class="cell" type="button" aria-label="Cell 6" disabled></button>
+
+                <button class="cell" type="button" aria-label="Cell 7" disabled></button>
+                <button class="cell" type="button" aria-label="Cell 8" disabled></button>
+                <button class="cell" type="button" aria-label="Cell 9" disabled></button>
+            </div>
+
+            <button
+                id="restart-button"
+                class="button button-primary"
+                type="button"
+                disabled
+            >
+                New Game / Restart
+            </button>
+        </section>
     </main>
-
-    <!-- Connect the JavaScript file -->
-    <script src="script.js"></script>
 </body>
 </html>
