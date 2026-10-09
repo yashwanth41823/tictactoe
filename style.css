@@ -111,3 +111,29 @@ section {
     border-color: #16803c;
     color: #14532d;
 }
+
+
+
+/* New Game button */
+#restart-button {
+    margin-top: 15px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background-color: #2563eb;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Change the button color when hovered */
+#restart-button:hover {
+    background-color: #1d4ed8;
+}
+
+/* Show keyboard focus clearly */
+#restart-button:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
+}
