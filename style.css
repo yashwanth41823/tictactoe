@@ -103,3 +103,11 @@ section {
         padding: 15px;
     }
 }
+
+
+/* Highlight the three cells that form a winning line. */
+.winning-cell {
+    background-color: #a7f3a0;
+    border-color: #16803c;
+    color: #14532d;
+}
