@@ -1,4 +1,3 @@
-
 /* ========================================
    TIC TAC TOE - MODERN UI
    HTML and CSS only
@@ -20,6 +19,7 @@
     --danger: #b91c1c;
     --radius: 18px;
     --shadow: 0 8px 28px rgba(35, 49, 82, 0.07);
+    --page-glow: #e7eaff; /* soft glow in the top-left corner */
 }
 
 * {
@@ -33,7 +33,7 @@ body {
     font-family: Inter, "Segoe UI", Arial, sans-serif;
     color: var(--text);
     background:
-        radial-gradient(ellipse at top left, #e7eaff 0%, transparent 38%),
+        radial-gradient(ellipse at top left, var(--page-glow) 0%, transparent 38%),
         var(--page-bg);
     line-height: 1.5;
 }
@@ -55,9 +55,25 @@ button {
 
 /* ---------- Page heading ---------- */
 
+/* Header: empty | title | toggle. The 1fr side columns keep the title centered. */
 .page-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-areas: "spacer title toggle";
+    align-items: center;
+    column-gap: 12px;
     margin-bottom: 30px;
     text-align: center;
+}
+
+.page-title {
+    grid-area: title;
+    min-width: 0;
+}
+
+.theme-toggle {
+    grid-area: toggle;
+    justify-self: end;
 }
 
 .page-header h1 {
@@ -433,6 +449,11 @@ button {
     }
 
     .page-header {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "toggle"
+            "title";
+        row-gap: 14px;
         margin-bottom: 22px;
     }
 
@@ -602,4 +623,341 @@ button:focus-visible,
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+
+/* ===================================
+   Light Mode and Dark Mode Theme
+   =================================== */
+
+/* Light Mode: default theme */
+:root {
+    color-scheme: light;
+
+    --page-bg: #f4f6fb;
+    --surface-bg: #ffffff;
+    --text-color: #1e293b;
+    --muted-text: #64748b;
+    --border-color: #dbe2ee;
+    --cell-bg: #f8fafc;
+    --cell-hover-bg: #e8edff;
+    --input-bg: #ffffff;
+    --primary-bg: #4f46e5;
+    --primary-text: #ffffff;
+    --secondary-bg: #e9edf5;
+    --secondary-text: #263247;
+    --score-bg: #f8fafc;
+    --message-bg: #eef2ff;
+    --message-text: #3730a3;
+    --shadow-color: rgba(15, 23, 42, 0.08);
+}
+
+/* Dark Mode */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --page-bg: #0b1120;
+    --surface-bg: #151e30;
+    --text-color: #f1f5f9;
+    --muted-text: #b2bfd2;
+    --border-color: #334155;
+    --cell-bg: #202c40;
+    --cell-hover-bg: #30405b;
+    --input-bg: #111a2b;
+    --primary-bg: #6366f1;
+    --primary-text: #ffffff;
+    --secondary-bg: #29364b;
+    --secondary-text: #f1f5f9;
+    --score-bg: #111a2b;
+    --message-bg: #262b50;
+    --message-text: #e0e7ff;
+    --shadow-color: rgba(0, 0, 0, 0.25);
+}
+
+/* Smoothly transition the theme colors */
+body,
+.app,
+.panel,
+.player-card,
+.score-card,
+.game-panel,
+.game-board,
+.cell,
+input,
+textarea,
+select,
+.message,
+#turn-message,
+button,
+.button {
+    transition:
+        background-color 180ms ease,
+        color 180ms ease,
+        border-color 180ms ease,
+        box-shadow 180ms ease;
+}
+
+/* Page background and default text */
+body {
+    background-color: var(--page-bg);
+    color: var(--text-color);
+}
+
+/* Main application panels and cards */
+.panel,
+.player-card,
+.score-card,
+.game-panel {
+    background-color: var(--surface-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+    box-shadow: 0 8px 24px var(--shadow-color);
+}
+
+/* Headings and general text */
+h1,
+h2,
+h3,
+p,
+label,
+.player-label,
+.player-name,
+.score-name,
+.score-symbol,
+.score-value {
+    color: var(--text-color);
+}
+
+/* Secondary text */
+.page-header p,
+.form-group label,
+.player-label {
+    color: var(--muted-text);
+}
+
+/* Input fields */
+input,
+textarea,
+select {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--muted-text);
+}
+
+/* Tic Tac Toe cells */
+.cell {
+    background-color: var(--cell-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+/* Cell hover effect */
+.cell:hover:not(:disabled) {
+    background-color: var(--cell-hover-bg);
+}
+
+/* Winning cells remain visible in both themes */
+.cell.winning-cell {
+    background-color: #dcfce7;
+    color: #166534;
+    border-color: #22c55e;
+}
+
+:root[data-theme="dark"] .cell.winning-cell {
+    background-color: #14532d;
+    color: #dcfce7;
+    border-color: #4ade80;
+}
+
+/* Primary buttons */
+.button-primary {
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
+    border-color: transparent;
+}
+
+/* Secondary buttons */
+.button-secondary {
+    background-color: var(--secondary-bg);
+    color: var(--secondary-text);
+    border-color: var(--border-color);
+}
+
+/* General buttons */
+button {
+    border-color: var(--border-color);
+}
+
+/* Scoreboard */
+.scoreboard,
+.score-card {
+    color: var(--text-color);
+}
+
+.score-card {
+    background-color: var(--score-bg);
+}
+
+/* Turn and result messages */
+.message,
+#turn-message {
+    color: var(--message-text);
+}
+
+/* Give the turn message a subtle themed background */
+#turn-message {
+    background-color: var(--message-bg);
+    border-color: var(--border-color);
+}
+
+/* Validation messages remain readable */
+#validation-message {
+    color: #b91c1c;
+}
+
+:root[data-theme="dark"] #validation-message {
+    color: #fca5a5;
+}
+
+/* Theme toggle button */
+#theme-toggle-button {
+    cursor: pointer;
+}
+
+/* Keyboard focus remains visible */
+button:focus-visible,
+input:focus-visible,
+.cell:focus-visible {
+    outline: 3px solid #818cf8;
+    outline-offset: 3px;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    body,
+    .app,
+    .panel,
+    .player-card,
+    .score-card,
+    .game-panel,
+    .game-board,
+    .cell,
+    input,
+    textarea,
+    select,
+    .message,
+    #turn-message,
+    button,
+    .button {
+        transition: none !important;
+    }
+}
+
+
+/* ===================================
+   Theme Fixes (dark mode contrast)
+   ===================================
+   Several older rules used fixed light colors or the old variables
+   (--text, --muted, ...) which never changed in Dark Mode. These rules
+   make everything follow the theme variables. */
+
+/* Light Mode extra colors */
+:root {
+    --secondary-hover-bg: #dde3ef;
+    --score-hover-bg: #eef1ff;
+    --score-hover-border: #d1d5f7;
+    --symbol-x-bg: #eeedff;
+    --symbol-o-bg: #fff1dd;
+    --symbol-o-text: #a75c12;
+}
+
+/* Dark Mode: point the old variables at readable dark-theme colors */
+:root[data-theme="dark"] {
+    --text: #f1f5f9;
+    --muted: #b2bfd2;
+    --surface: #151e30;
+    --border: #334155;
+    --x-color: #a5b4fc;
+    --o-color: #fdba74;
+    --page-glow: #1b2447;
+
+    --secondary-hover-bg: #38465f;
+    --score-hover-bg: #1b2740;
+    --score-hover-border: #475569;
+    --symbol-x-bg: rgba(165, 180, 252, 0.16);
+    --symbol-o-bg: rgba(253, 186, 116, 0.16);
+    --symbol-o-text: #fdba74;
+}
+
+/* Page title: the old rule used the fixed dark --text color */
+.page-header h1 {
+    color: var(--text-color);
+}
+
+/* Scoreboard hover: was a fixed light background with light text in Dark Mode.
+   It is limited to devices with a real mouse, so a tap or swipe on a phone
+   can no longer leave a card stuck in its hover state. */
+.score-card:hover {
+    background: var(--score-bg);
+    border-color: var(--border-color);
+}
+
+@media (hover: hover) {
+    .score-card:hover {
+        background: var(--score-hover-bg);
+        border-color: var(--score-hover-border);
+    }
+}
+
+/* Secondary buttons (Reset Scores and the theme toggle) hover color */
+.button-secondary:hover:not(:disabled) {
+    background-color: var(--secondary-hover-bg);
+}
+
+/* Inputs: .form-group input outranked the theme rule for inputs */
+.form-group input {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.form-group input::placeholder {
+    color: var(--muted-text);
+}
+
+.form-group input:focus {
+    border-color: var(--primary-bg);
+}
+
+/* X and O badges in the Players panel */
+.symbol-x {
+    background: var(--symbol-x-bg);
+}
+
+.symbol-o {
+    color: var(--symbol-o-text);
+    background: var(--symbol-o-bg);
+}
+
+/* ---------- Theme toggle button ---------- */
+
+.theme-toggle {
+    min-width: 9.5rem;          /* keeps the width steady when the label changes */
+    min-height: 40px;
+    padding: 8px 16px;
+    gap: 6px;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .theme-toggle {
+        justify-self: end;      /* top-right corner on mobile too */
+    }
 }

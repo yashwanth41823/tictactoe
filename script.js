@@ -1,4 +1,3 @@
-
 /*
     Tic Tac Toe
     Player setup, game rules, scoreboard, and animations.
@@ -8,6 +7,7 @@
 const cells = document.querySelectorAll(".cell");
 const turnMessage = document.getElementById("turn-message");
 
+const themeToggleButton = document.getElementById("theme-toggle-button");
 const playerForm = document.getElementById("player-form");
 const playerXInput = document.getElementById("player-x-name");
 const playerOInput = document.getElementById("player-o-name");
@@ -70,6 +70,58 @@ function playAnimation(element, className) {
 
     element.classList.add(className);
 }
+
+
+/* ===================================
+   Light Mode and Dark Mode
+   =================================== */
+
+// Apply the selected theme to the page.
+function applyTheme(theme) {
+    const selectedTheme = theme === "dark" ? "dark" : "light";
+
+    document.documentElement.setAttribute("data-theme", selectedTheme);
+
+    // Update the toggle button label and accessibility state.
+    if (selectedTheme === "dark") {
+        themeToggleButton.textContent = "☀️ Light Mode";
+        themeToggleButton.setAttribute("aria-pressed", "true");
+    } else {
+        themeToggleButton.textContent = "🌙 Dark Mode";
+        themeToggleButton.setAttribute("aria-pressed", "false");
+    }
+}
+
+// Restore the saved theme when the page opens.
+function loadSavedTheme() {
+    try {
+        const savedTheme = localStorage.getItem("tic-tac-toe-theme");
+        applyTheme(savedTheme === "dark" ? "dark" : "light");
+    } catch (error) {
+        // If storage is unavailable, use Light Mode.
+        applyTheme("light");
+    }
+}
+
+// Toggle the theme and save the user's choice.
+themeToggleButton.addEventListener("click", function () {
+    const currentTheme =
+        document.documentElement.getAttribute("data-theme") || "light";
+
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+
+    applyTheme(newTheme);
+
+    try {
+        localStorage.setItem("tic-tac-toe-theme", newTheme);
+    } catch (error) {
+        // The theme still changes for this page session
+        // even if the browser cannot save the preference.
+    }
+});
+
+// Restore the saved theme on page load.
+loadSavedTheme();
 
 // Display whose turn it is.
 function updateTurnMessage() {
