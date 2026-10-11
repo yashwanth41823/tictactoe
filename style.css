@@ -961,3 +961,100 @@ input:focus-visible,
         justify-self: end;      /* top-right corner on mobile too */
     }
 }
+
+
+/* ===================================
+   Settings Panel
+   =================================== */
+
+.setting-group {
+    min-width: 0;
+    margin: 0 0 18px;
+    padding: 0;
+    border: 0;
+}
+
+.setting-group:last-child {
+    margin-bottom: 0;
+}
+
+.setting-label {
+    padding: 0;
+    margin-bottom: 8px;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    font-weight: 650;
+}
+
+/* A row of choices that looks like one segmented control */
+.segmented {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: var(--score-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.segment {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+/* The real radio button is invisible but still works with the keyboard. */
+.segment input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.segment span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 10px;
+    color: var(--secondary-text);
+    border-radius: 9px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: center;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+/* The selected choice */
+.segment input:checked + span {
+    color: var(--primary-text);
+    background: var(--primary-bg);
+}
+
+/* Hover only on devices with a real mouse (avoids sticky hover on phones) */
+@media (hover: hover) {
+    .segment:hover input:not(:checked) + span {
+        background: var(--secondary-hover-bg);
+    }
+}
+
+/* Keyboard focus */
+.segment input:focus-visible + span {
+    outline: 3px solid #818cf8;
+    outline-offset: 2px;
+}
+
+.setting-hint {
+    margin: 8px 0 0;
+    color: var(--muted-text);
+    font-size: 0.8rem;
+}
+
+@media (max-width: 380px) {
+    .segment span {
+        padding: 8px 4px;
+        font-size: 0.8rem;
+    }
+}

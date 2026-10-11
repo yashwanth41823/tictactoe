@@ -24,6 +24,7 @@ const scoreDrawsDisplay = document.getElementById("score-draws");
 
 const restartButton = document.getElementById("restart-button");
 const resetScoresButton = document.getElementById("reset-scores-button");
+const resetAllDataButton = document.getElementById("reset-all-data-button");
 
 // Store the names assigned to X and O.
 const playerNames = {
@@ -73,8 +74,139 @@ function playAnimation(element, className) {
 
 
 /* ===================================
-   Light Mode and Dark Mode
+   Settings: Theme, Sound, Starting Player
    =================================== */
+
+// The settings panel in the HTML.
+const settingsForm = document.getElementById("settings-form");
+
+// The name used to save the settings in localStorage.
+const SETTINGS_KEY = "tic-tac-toe-settings";
+const APP_DATA_KEY = "tic-tac-toe-app-data";
+
+// The settings used on a first visit.
+const defaultSettings = {
+    theme: "light",        // "light" or "dark"
+    sound: "on",           // "on" or "off"
+    startingPlayer: "X"    // "X", "O", or "random"
+};
+
+// The only values each setting is allowed to have.
+const allowedValues = {
+    theme: ["light", "dark"],
+    sound: ["on", "off"],
+    startingPlayer: ["X", "O", "random"]
+};
+
+// The current settings (starts as a copy of the defaults).
+const settings = Object.assign({}, defaultSettings);
+
+// Load saved settings from localStorage.
+function loadSettings() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+
+        if (saved) {
+            // Only accept values we know are valid.
+            for (const key in allowedValues) {
+                if (allowedValues[key].includes(saved[key])) {
+                    settings[key] = saved[key];
+                }
+            }
+        } else if (localStorage.getItem("tic-tac-toe-theme") === "dark") {
+            // Keep a theme that was saved by the older version of this app.
+            settings.theme = "dark";
+        }
+    } catch (error) {
+        // If storage is unavailable or damaged, use the defaults.
+    }
+}
+
+// Save the current settings to localStorage.
+function saveSettings() {
+    try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (error) {
+        // The settings still work for this page session
+        // even if the browser cannot save them.
+    }
+
+    // Also save the settings alongside player names and scores.
+    saveAppData();
+}
+
+// Save the information that should survive a page refresh.
+function saveAppData() {
+    const appData = {
+        playerNames: playerNames,
+        scores: scores,
+        settings: settings
+    };
+
+    try {
+        localStorage.setItem(APP_DATA_KEY, JSON.stringify(appData));
+    } catch (error) {
+        // The game can still be played if browser storage is unavailable.
+    }
+}
+
+// Load saved names, scores, and settings safely.
+function loadAppData() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(APP_DATA_KEY));
+
+        // Missing data, invalid JSON, or an unexpected value is ignored.
+        if (!saved || typeof saved !== "object" || Array.isArray(saved)) {
+            return;
+        }
+
+        if (saved.playerNames && typeof saved.playerNames === "object") {
+            if (typeof saved.playerNames.X === "string") {
+                playerNames.X = saved.playerNames.X.trim().slice(0, 30);
+                playerXInput.value = playerNames.X;
+            }
+
+            if (typeof saved.playerNames.O === "string") {
+                playerNames.O = saved.playerNames.O.trim().slice(0, 30);
+                playerOInput.value = playerNames.O;
+            }
+        }
+
+        if (saved.scores && typeof saved.scores === "object") {
+            ["X", "O", "draws"].forEach(function (key) {
+                const value = saved.scores[key];
+
+                // Scores must be non-negative whole numbers.
+                if (Number.isSafeInteger(value) && value >= 0) {
+                    scores[key] = value;
+                }
+            });
+        }
+
+        if (saved.settings && typeof saved.settings === "object") {
+            for (const key in allowedValues) {
+                if (allowedValues[key].includes(saved.settings[key])) {
+                    settings[key] = saved.settings[key];
+                }
+            }
+        }
+    } catch (error) {
+        // If saved data is damaged or storage is blocked, use safe defaults.
+    }
+}
+
+// Select the correct radio button for every setting.
+function updateSettingsForm() {
+    for (const key in settings) {
+        const radio = settingsForm.querySelector(
+            `input[name="${key}"][value="${settings[key]}"]`
+        );
+
+        if (radio) {
+            radio.checked = true;
+        }
+    }
+}
 
 // Apply the selected theme to the page.
 function applyTheme(theme) {
@@ -92,36 +224,124 @@ function applyTheme(theme) {
     }
 }
 
-// Restore the saved theme when the page opens.
-function loadSavedTheme() {
-    try {
-        const savedTheme = localStorage.getItem("tic-tac-toe-theme");
-        applyTheme(savedTheme === "dark" ? "dark" : "light");
-    } catch (error) {
-        // If storage is unavailable, use Light Mode.
-        applyTheme("light");
-    }
-}
-
-// Toggle the theme and save the user's choice.
+// The header button switches the theme and keeps the settings panel in sync.
 themeToggleButton.addEventListener("click", function () {
-    const currentTheme =
-        document.documentElement.getAttribute("data-theme") || "light";
+    settings.theme = settings.theme === "dark" ? "light" : "dark";
 
-    const newTheme = currentTheme === "dark" ? "light" : "dark";
+    applyTheme(settings.theme);
+    updateSettingsForm();
+    saveSettings();
+});
 
-    applyTheme(newTheme);
+// When any radio button in the settings panel changes.
+settingsForm.addEventListener("change", function (event) {
+    const key = event.target.name;
+    const value = event.target.value;
 
-    try {
-        localStorage.setItem("tic-tac-toe-theme", newTheme);
-    } catch (error) {
-        // The theme still changes for this page session
-        // even if the browser cannot save the preference.
+    // Ignore anything that is not a known setting.
+    if (!allowedValues[key] || !allowedValues[key].includes(value)) {
+        return;
+    }
+
+    settings[key] = value;
+    saveSettings();
+
+    if (key === "theme") {
+        applyTheme(value);
+    }
+
+    // Play a short beep so the player can hear that sound is on.
+    if (key === "sound") {
+        playSound("on");
     }
 });
 
-// Restore the saved theme on page load.
-loadSavedTheme();
+
+/* ===================================
+   Sound (made with the browser, no sound files needed)
+   =================================== */
+
+// Created the first time a sound is played.
+let audioContext = null;
+
+// Play one short beep.
+function playTone(frequency, delay, duration) {
+    const startTime = audioContext.currentTime + delay;
+
+    const oscillator = audioContext.createOscillator();
+    const volume = audioContext.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+
+    // Fade in and out quickly so the beep does not click.
+    volume.gain.setValueAtTime(0.0001, startTime);
+    volume.gain.exponentialRampToValueAtTime(0.15, startTime + 0.01);
+    volume.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    oscillator.connect(volume);
+    volume.connect(audioContext.destination);
+
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration + 0.02);
+}
+
+// Play a named sound, but only when Sound is set to "on".
+function playSound(name) {
+    if (settings.sound !== "on") {
+        return;
+    }
+
+    try {
+        // Browsers only allow audio after a click, so create it here.
+        if (!audioContext) {
+            const AudioContextClass =
+                window.AudioContext || window.webkitAudioContext;
+
+            if (!AudioContextClass) {
+                return;
+            }
+
+            audioContext = new AudioContextClass();
+        }
+
+        if (audioContext.state === "suspended") {
+            audioContext.resume();
+        }
+
+        if (name === "x") {
+            playTone(520, 0, 0.12);
+        } else if (name === "o") {
+            playTone(390, 0, 0.12);
+        } else if (name === "win") {
+            playTone(523, 0, 0.14);
+            playTone(659, 0.14, 0.14);
+            playTone(784, 0.28, 0.28);
+        } else if (name === "draw") {
+            playTone(260, 0, 0.18);
+            playTone(220, 0.18, 0.28);
+        } else if (name === "on") {
+            playTone(660, 0, 0.1);
+        }
+    } catch (error) {
+        // If sound fails, the game keeps working silently.
+    }
+}
+
+// Choose who goes first in a new game, using the Starting Player setting.
+function getStartingPlayer() {
+    if (settings.startingPlayer === "random") {
+        return Math.random() < 0.5 ? "X" : "O";
+    }
+
+    return settings.startingPlayer;
+}
+
+// Restore settings first, then the complete saved application data.
+loadSettings();
+loadAppData();
+applyTheme(settings.theme);
+updateSettingsForm();
 
 // Display whose turn it is.
 function updateTurnMessage() {
@@ -204,10 +424,13 @@ function handleCellClick(cell) {
     if (checkWinner()) {
         gameOver = true;
 
+        playSound("win");
+
         // Add one point to the winner's score.
         scores[currentPlayer]++;
 
         updateScoreboard();
+        saveAppData();
 
         // Show and animate the winning message.
         showAnimatedMessage(
@@ -222,13 +445,19 @@ function handleCellClick(cell) {
         gameOver = true;
         scores.draws++;
 
+        playSound("draw");
+
         updateScoreboard();
+        saveAppData();
 
         // Show and animate the draw message.
         showAnimatedMessage("It's a Draw!");
 
         return;
     }
+
+    // Play the move sound for the player who just moved.
+    playSound(currentPlayer === "X" ? "x" : "o");
 
     // Switch players.
     currentPlayer = currentPlayer === "X" ? "O" : "X";
@@ -254,7 +483,8 @@ function restartGame() {
     turnMessage.classList.remove("win-message");
 
     // Reset the current game state.
-    currentPlayer = "X";
+    // The Starting Player setting decides who goes first.
+    currentPlayer = getStartingPlayer();
     gameOver = false;
 
     // Show the first player's turn.
@@ -290,6 +520,9 @@ playerForm.addEventListener("submit", function (event) {
 
     // A valid submission starts a fresh game.
     restartGame();
+
+    // Save the names and current scores.
+    saveAppData();
 });
 
 // Attach one click listener to each cell.
@@ -316,6 +549,56 @@ resetScoresButton.addEventListener("click", function () {
     scores.draws = 0;
 
     updateScoreboard();
+    saveAppData();
+});
+
+// Delete all saved application data only after confirmation.
+resetAllDataButton.addEventListener("click", function () {
+    const confirmed = window.confirm(
+        "Reset all data? This will delete saved player names, scores, and settings."
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    // Remove current and older storage keys used by this app.
+    try {
+        localStorage.removeItem(APP_DATA_KEY);
+        localStorage.removeItem(SETTINGS_KEY);
+        localStorage.removeItem("tic-tac-toe-theme");
+    } catch (error) {
+        // Continue resetting the visible app even if storage is unavailable.
+    }
+
+    // Restore the in-memory defaults.
+    playerNames.X = "";
+    playerNames.O = "";
+    scores.X = 0;
+    scores.O = 0;
+    scores.draws = 0;
+
+    Object.assign(settings, defaultSettings);
+    playerXInput.value = "";
+    playerOInput.value = "";
+    validationMessage.textContent = "";
+
+    // Clear the board and return the game to its initial state.
+    cells.forEach(function (cell) {
+        cell.textContent = "";
+        cell.disabled = true;
+        cell.classList.remove("winning-cell", "mark-pop");
+    });
+
+    gameOver = true;
+    currentPlayer = "X";
+    restartButton.disabled = true;
+    turnMessage.textContent = "Enter both player names to start.";
+    turnMessage.classList.remove("win-message");
+
+    updatePlayerDisplay();
+    applyTheme(settings.theme);
+    updateSettingsForm();
 });
 
 // Set up the initial screen.

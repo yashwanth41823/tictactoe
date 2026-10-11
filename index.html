@@ -75,6 +75,60 @@
             </form>
         </section>
 
+        <!-- Settings: saved in localStorage and used for new games. -->
+        <section class="panel" aria-labelledby="settings-heading">
+            <h2 id="settings-heading">Settings</h2>
+
+            <div id="settings-form">
+                <fieldset class="setting-group">
+                    <legend class="setting-label">Theme</legend>
+                    <div class="segmented">
+                        <label class="segment">
+                            <input type="radio" name="theme" value="light" checked>
+                            <span>☀️ Light</span>
+                        </label>
+                        <label class="segment">
+                            <input type="radio" name="theme" value="dark">
+                            <span>🌙 Dark</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="setting-group">
+                    <legend class="setting-label">Sound</legend>
+                    <div class="segmented">
+                        <label class="segment">
+                            <input type="radio" name="sound" value="on" checked>
+                            <span>🔊 On</span>
+                        </label>
+                        <label class="segment">
+                            <input type="radio" name="sound" value="off">
+                            <span>🔇 Off</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="setting-group">
+                    <legend class="setting-label">Starting player</legend>
+                    <div class="segmented">
+                        <label class="segment">
+                            <input type="radio" name="startingPlayer" value="X" checked>
+                            <span>X</span>
+                        </label>
+                        <label class="segment">
+                            <input type="radio" name="startingPlayer" value="O">
+                            <span>O</span>
+                        </label>
+                        <label class="segment">
+                            <input type="radio" name="startingPlayer" value="random">
+                            <span>Random</span>
+                        </label>
+                    </div>
+                    <p class="setting-hint">Applies to the next new game.</p>
+                </fieldset>
+            </div>
+        </section>
+
         <!-- Shows the players and their assigned symbols. -->
         <section class="panel" aria-labelledby="players-heading">
             <h2 id="players-heading">Players</h2>
@@ -132,6 +186,14 @@
                 type="button"
             >
                 Reset Scores
+            </button>
+
+            <button
+                id="reset-all-data-button"
+                class="button button-secondary"
+                type="button"
+            >
+                Reset All Data
             </button>
         </section>
 
