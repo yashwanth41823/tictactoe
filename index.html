@@ -109,6 +109,28 @@
                 </fieldset>
 
                 <fieldset class="setting-group">
+                    <legend class="setting-label">Turn timer</legend>
+                    <div class="segmented">
+                        <label class="segment">
+                            <input type="radio" name="timerEnabled" value="off" checked>
+                            <span>Off</span>
+                        </label>
+                        <label class="segment">
+                            <input type="radio" name="timerEnabled" value="on">
+                            <span>On</span>
+                        </label>
+                    </div>
+                    <label class="timer-limit-label" for="turn-time-limit">Time limit per turn</label>
+                    <select id="turn-time-limit" name="turnTimeLimit" class="timer-limit-select">
+                        <option value="10">10 seconds</option>
+                        <option value="15">15 seconds</option>
+                        <option value="30" selected>30 seconds</option>
+                        <option value="60">60 seconds</option>
+                    </select>
+                    <p class="setting-hint">The countdown restarts whenever the turn changes.</p>
+                </fieldset>
+
+                <fieldset class="setting-group">
                     <legend class="setting-label">Starting player</legend>
                     <div class="segmented">
                         <label class="segment">
@@ -197,6 +219,58 @@
             </button>
         </section>
 
+        <!-- Statistics: totals and streaks across completed games. -->
+        <section class="panel" aria-labelledby="statistics-heading">
+            <h2 id="statistics-heading">Statistics</h2>
+
+            <div class="statistics-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Total Games</span>
+                    <strong id="stat-total-games" class="stat-value">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">X Wins</span>
+                    <strong id="stat-x-wins" class="stat-value">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">O Wins</span>
+                    <strong id="stat-o-wins" class="stat-value">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Draws</span>
+                    <strong id="stat-draws" class="stat-value">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">X Win %</span>
+                    <strong id="stat-x-percentage" class="stat-value">0%</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">O Win %</span>
+                    <strong id="stat-o-percentage" class="stat-value">0%</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Draw %</span>
+                    <strong id="stat-draw-percentage" class="stat-value">0%</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Current Winning Streak</span>
+                    <strong id="stat-current-streak" class="stat-value">None</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Best Winning Streak</span>
+                    <strong id="stat-best-streak" class="stat-value">None</strong>
+                </div>
+            </div>
+
+            <button
+                id="reset-statistics-button"
+                class="button button-secondary"
+                type="button"
+            >
+                Reset Statistics
+            </button>
+        </section>
+
         <!-- Main game area. -->
         <section class="panel game-panel" aria-labelledby="game-heading">
             <h2 id="game-heading">Game Board</h2>
@@ -204,6 +278,8 @@
             <p id="turn-message" class="turn-message" aria-live="polite">
                 Enter both player names to start.
             </p>
+            <p id="timer-display" class="timer-display" aria-live="polite" hidden>Time remaining: 30s</p>
+            <button id="pause-game-button" class="button button-secondary pause-game-button" type="button" disabled>Pause Game</button>
 
             <div class="game-board" role="group" aria-label="Tic Tac Toe board">
                 <button class="cell" type="button" aria-label="Cell 1" disabled></button>

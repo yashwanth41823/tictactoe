@@ -25,6 +25,10 @@ const scoreDrawsDisplay = document.getElementById("score-draws");
 const restartButton = document.getElementById("restart-button");
 const resetScoresButton = document.getElementById("reset-scores-button");
 const resetAllDataButton = document.getElementById("reset-all-data-button");
+const resetStatisticsButton = document.getElementById("reset-statistics-button");
+const timerDisplay = document.getElementById("timer-display");
+const pauseGameButton = document.getElementById("pause-game-button");
+const turnTimeLimitSelect = document.getElementById("turn-time-limit");
 
 // Store the names assigned to X and O.
 const playerNames = {
@@ -37,6 +41,11 @@ let currentPlayer = "X";
 
 // A game cannot be played until both names are submitted.
 let gameOver = true;
+let gamePaused = false;
+let timerInterval = null;
+let remainingSeconds = 30;
+let turnStartedAt = 0;
+let turnStartRemaining = 0;
 
 // Keep the scores in memory while the page remains open.
 const scores = {
@@ -44,6 +53,19 @@ const scores = {
     O: 0,
     draws: 0
 };
+
+// Statistics count completed games separately from the resettable scoreboard.
+const defaultStatistics = {
+    totalGames: 0,
+    xWins: 0,
+    oWins: 0,
+    draws: 0,
+    currentStreakPlayer: "",
+    currentStreak: 0,
+    bestStreakPlayer: "",
+    bestStreak: 0
+};
+const statistics = Object.assign({}, defaultStatistics);
 
 // The eight possible winning combinations.
 const winningCombinations = [
@@ -88,14 +110,18 @@ const APP_DATA_KEY = "tic-tac-toe-app-data";
 const defaultSettings = {
     theme: "light",        // "light" or "dark"
     sound: "on",           // "on" or "off"
-    startingPlayer: "X"    // "X", "O", or "random"
+    startingPlayer: "X",   // "X", "O", or "random"
+    timerEnabled: "off",   // "on" or "off"
+    turnTimeLimit: "30"    // Seconds allowed for each turn
 };
 
 // The only values each setting is allowed to have.
 const allowedValues = {
     theme: ["light", "dark"],
     sound: ["on", "off"],
-    startingPlayer: ["X", "O", "random"]
+    startingPlayer: ["X", "O", "random"],
+    timerEnabled: ["on", "off"],
+    turnTimeLimit: ["10", "15", "30", "60"]
 };
 
 // The current settings (starts as a copy of the defaults).
@@ -140,7 +166,8 @@ function saveAppData() {
     const appData = {
         playerNames: playerNames,
         scores: scores,
-        settings: settings
+        settings: settings,
+        statistics: statistics
     };
 
     try {
@@ -190,6 +217,24 @@ function loadAppData() {
                 }
             }
         }
+
+        if (saved.statistics && typeof saved.statistics === "object") {
+            const numberKeys = ["totalGames", "xWins", "oWins", "draws", "currentStreak", "bestStreak"];
+
+            numberKeys.forEach(function (key) {
+                const value = saved.statistics[key];
+                if (Number.isSafeInteger(value) && value >= 0) {
+                    statistics[key] = value;
+                }
+            });
+
+            ["currentStreakPlayer", "bestStreakPlayer"].forEach(function (key) {
+                const value = saved.statistics[key];
+                if (value === "X" || value === "O" || value === "") {
+                    statistics[key] = value;
+                }
+            });
+        }
     } catch (error) {
         // If saved data is damaged or storage is blocked, use safe defaults.
     }
@@ -204,6 +249,11 @@ function updateSettingsForm() {
 
         if (radio) {
             radio.checked = true;
+        }
+
+        const select = settingsForm.querySelector(`select[name="${key}"]`);
+        if (select) {
+            select.value = settings[key];
         }
     }
 }
@@ -253,6 +303,16 @@ settingsForm.addEventListener("change", function (event) {
     // Play a short beep so the player can hear that sound is on.
     if (key === "sound") {
         playSound("on");
+    }
+
+    if (key === "timerEnabled" || key === "turnTimeLimit") {
+        if (!gameOver && !gamePaused) {
+            startTurnTimer(true);
+        } else {
+            remainingSeconds = Number(settings.turnTimeLimit);
+            stopTimer();
+            updateTimerDisplay();
+        }
     }
 });
 
@@ -343,6 +403,113 @@ loadAppData();
 applyTheme(settings.theme);
 updateSettingsForm();
 
+// Stop the one active interval, if there is one.
+function stopTimer() {
+    if (timerInterval !== null) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+// Show the countdown only when the optional timer is enabled.
+function updateTimerDisplay() {
+    const timerEnabled = settings.timerEnabled === "on";
+    timerDisplay.hidden = !timerEnabled;
+
+    if (!timerEnabled) {
+        timerDisplay.classList.remove("timer-low");
+        return;
+    }
+
+    timerDisplay.textContent = gamePaused
+        ? `Paused — ${remainingSeconds}s remaining`
+        : `Time remaining: ${remainingSeconds}s`;
+    timerDisplay.classList.toggle("timer-low", remainingSeconds <= 5);
+}
+
+// Start a fresh countdown for the player whose turn it is.
+function startTurnTimer(resetTime = true) {
+    stopTimer();
+
+    if (resetTime) {
+        remainingSeconds = Number(settings.turnTimeLimit);
+    }
+
+    turnStartedAt = Date.now();
+    turnStartRemaining = remainingSeconds;
+    updateTimerDisplay();
+
+    if (settings.timerEnabled !== "on" || gameOver || gamePaused) {
+        return;
+    }
+
+    // There is always at most one interval because stopTimer() runs first.
+    timerInterval = setInterval(function () {
+        const elapsedSeconds = Math.floor((Date.now() - turnStartedAt) / 1000);
+        remainingSeconds = Math.max(0, turnStartRemaining - elapsedSeconds);
+        updateTimerDisplay();
+
+        if (remainingSeconds <= 0) {
+            stopTimer();
+            finishGameByTimeout();
+        }
+    }, 250);
+}
+
+// If the current player runs out of time, the other player wins.
+function finishGameByTimeout() {
+    if (gameOver || gamePaused || settings.timerEnabled !== "on") {
+        return;
+    }
+
+    gameOver = true;
+    stopTimer();
+
+    const winner = currentPlayer === "X" ? "O" : "X";
+    scores[winner]++;
+    updateScoreboard();
+    recordCompletedGame(winner);
+    playSound("win");
+    showAnimatedMessage(`${playerNames[winner]} (${winner}) wins — time ran out for ${playerNames[currentPlayer]} (${currentPlayer})!`);
+    pauseGameButton.disabled = true;
+    pauseGameButton.textContent = "Pause Game";
+    updateTimerDisplay();
+}
+
+// Pause or resume the current turn without losing its remaining time.
+function toggleGamePause() {
+    if (gameOver) {
+        return;
+    }
+
+    if (!gamePaused) {
+        // Calculate the remaining time before stopping the interval.
+        if (settings.timerEnabled === "on") {
+            const elapsedSeconds = Math.floor((Date.now() - turnStartedAt) / 1000);
+            remainingSeconds = Math.max(0, turnStartRemaining - elapsedSeconds);
+        }
+        gamePaused = true;
+        stopTimer();
+        cells.forEach(function (cell) { cell.disabled = true; });
+        pauseGameButton.textContent = "Resume Game";
+        updateTimerDisplay();
+
+        if (remainingSeconds <= 0 && settings.timerEnabled === "on") {
+            // A timeout that happened just as Pause was clicked still counts.
+            gamePaused = false;
+            finishGameByTimeout();
+        }
+        return;
+    }
+
+    gamePaused = false;
+    cells.forEach(function (cell) {
+        cell.disabled = cell.textContent !== "";
+    });
+    pauseGameButton.textContent = "Pause Game";
+    startTurnTimer(false);
+}
+
 // Display whose turn it is.
 function updateTurnMessage() {
     turnMessage.textContent =
@@ -365,6 +532,74 @@ function updatePlayerDisplay() {
     displayPlayerO.textContent = playerNames.O;
 
     updateScoreboard();
+}
+
+// Return a percentage safely, avoiding division by zero.
+function calculatePercentage(part, total) {
+    return total === 0 ? 0 : Math.round((part / total) * 100);
+}
+
+// Refresh all statistics shown in the interface.
+function updateStatisticsDisplay() {
+    document.getElementById("stat-total-games").textContent = statistics.totalGames;
+    document.getElementById("stat-x-wins").textContent = statistics.xWins;
+    document.getElementById("stat-o-wins").textContent = statistics.oWins;
+    document.getElementById("stat-draws").textContent = statistics.draws;
+
+    document.getElementById("stat-x-percentage").textContent =
+        calculatePercentage(statistics.xWins, statistics.totalGames) + "%";
+    document.getElementById("stat-o-percentage").textContent =
+        calculatePercentage(statistics.oWins, statistics.totalGames) + "%";
+    document.getElementById("stat-draw-percentage").textContent =
+        calculatePercentage(statistics.draws, statistics.totalGames) + "%";
+
+    document.getElementById("stat-current-streak").textContent =
+        statistics.currentStreak > 0
+            ? `${statistics.currentStreakPlayer}: ${statistics.currentStreak}`
+            : "None";
+    document.getElementById("stat-best-streak").textContent =
+        statistics.bestStreak > 0
+            ? `${statistics.bestStreakPlayer}: ${statistics.bestStreak}`
+            : "None";
+}
+
+// Record exactly one completed game and update the winning streak.
+function recordCompletedGame(result) {
+    statistics.totalGames++;
+
+    if (result === "draw") {
+        statistics.draws++;
+        statistics.currentStreakPlayer = "";
+        statistics.currentStreak = 0;
+    } else {
+        if (result === "X") {
+            statistics.xWins++;
+        } else {
+            statistics.oWins++;
+        }
+
+        if (statistics.currentStreakPlayer === result) {
+            statistics.currentStreak++;
+        } else {
+            statistics.currentStreakPlayer = result;
+            statistics.currentStreak = 1;
+        }
+
+        if (statistics.currentStreak > statistics.bestStreak) {
+            statistics.bestStreak = statistics.currentStreak;
+            statistics.bestStreakPlayer = result;
+        }
+    }
+
+    updateStatisticsDisplay();
+    saveAppData();
+}
+
+// Reset only the statistics, leaving the existing scoreboard untouched.
+function resetStatistics() {
+    Object.assign(statistics, defaultStatistics);
+    updateStatisticsDisplay();
+    saveAppData();
 }
 
 // Check all possible winning combinations.
@@ -405,7 +640,7 @@ function showAnimatedMessage(message) {
 // Handle a player clicking a cell.
 function handleCellClick(cell) {
     // Prevent moves before setup or after the game ends.
-    if (gameOver) {
+    if (gameOver || gamePaused) {
         return;
     }
 
@@ -423,6 +658,8 @@ function handleCellClick(cell) {
     // Check for a win BEFORE checking for a draw.
     if (checkWinner()) {
         gameOver = true;
+        stopTimer();
+        pauseGameButton.disabled = true;
 
         playSound("win");
 
@@ -430,7 +667,7 @@ function handleCellClick(cell) {
         scores[currentPlayer]++;
 
         updateScoreboard();
-        saveAppData();
+        recordCompletedGame(currentPlayer);
 
         // Show and animate the winning message.
         showAnimatedMessage(
@@ -443,12 +680,14 @@ function handleCellClick(cell) {
     // If nobody won and all cells are full, it is a draw.
     if (checkDraw()) {
         gameOver = true;
+        stopTimer();
+        pauseGameButton.disabled = true;
         scores.draws++;
 
         playSound("draw");
 
         updateScoreboard();
-        saveAppData();
+        recordCompletedGame("draw");
 
         // Show and animate the draw message.
         showAnimatedMessage("It's a Draw!");
@@ -463,6 +702,7 @@ function handleCellClick(cell) {
     currentPlayer = currentPlayer === "X" ? "O" : "X";
 
     updateTurnMessage();
+    startTurnTimer(true);
 }
 
 // Start a new game without resetting the scoreboard.
@@ -484,11 +724,16 @@ function restartGame() {
 
     // Reset the current game state.
     // The Starting Player setting decides who goes first.
+    stopTimer();
     currentPlayer = getStartingPlayer();
     gameOver = false;
+    gamePaused = false;
+    pauseGameButton.disabled = false;
+    pauseGameButton.textContent = "Pause Game";
 
-    // Show the first player's turn.
+    // Show the first player's turn and begin its countdown.
     updateTurnMessage();
+    startTurnTimer(true);
 }
 
 // Validate names and begin a new game.
@@ -532,6 +777,9 @@ cells.forEach(function (cell) {
     });
 });
 
+// Pause or resume the current game.
+pauseGameButton.addEventListener("click", toggleGamePause);
+
 // Restart the game while keeping the scores.
 restartButton.addEventListener("click", function () {
     // Do not restart until both player names are set.
@@ -555,7 +803,7 @@ resetScoresButton.addEventListener("click", function () {
 // Delete all saved application data only after confirmation.
 resetAllDataButton.addEventListener("click", function () {
     const confirmed = window.confirm(
-        "Reset all data? This will delete saved player names, scores, and settings."
+        "Reset all data? This will delete saved player names, scoreboard scores, statistics, and settings."
     );
 
     if (!confirmed) {
@@ -577,11 +825,20 @@ resetAllDataButton.addEventListener("click", function () {
     scores.X = 0;
     scores.O = 0;
     scores.draws = 0;
+    Object.assign(statistics, defaultStatistics);
 
     Object.assign(settings, defaultSettings);
     playerXInput.value = "";
     playerOInput.value = "";
     validationMessage.textContent = "";
+
+    // Stop the timer and clear pause state before resetting the board.
+    stopTimer();
+    gamePaused = false;
+    remainingSeconds = Number(defaultSettings.turnTimeLimit);
+    pauseGameButton.disabled = true;
+    pauseGameButton.textContent = "Pause Game";
+    updateTimerDisplay();
 
     // Clear the board and return the game to its initial state.
     cells.forEach(function (cell) {
@@ -597,8 +854,20 @@ resetAllDataButton.addEventListener("click", function () {
     turnMessage.classList.remove("win-message");
 
     updatePlayerDisplay();
+    updateStatisticsDisplay();
     applyTheme(settings.theme);
     updateSettingsForm();
+});
+
+// Reset statistics after asking for confirmation.
+resetStatisticsButton.addEventListener("click", function () {
+    const confirmed = window.confirm(
+        "Reset statistics? This clears game totals, percentages, and streaks but keeps the scoreboard."
+    );
+
+    if (confirmed) {
+        resetStatistics();
+    }
 });
 
 // Set up the initial screen.
@@ -607,6 +876,10 @@ cells.forEach(function (cell) {
 });
 
 restartButton.disabled = true;
+pauseGameButton.disabled = true;
+remainingSeconds = Number(settings.turnTimeLimit);
+turnTimeLimitSelect.value = settings.turnTimeLimit;
+updateTimerDisplay();
 
 // Enable the restart button once valid names are submitted.
 playerForm.addEventListener("submit", function () {
@@ -615,5 +888,6 @@ playerForm.addEventListener("submit", function () {
     }
 });
 
-// Show the initial zero scores.
+// Show the saved scoreboard and statistics on page load.
 updateScoreboard();
+updateStatisticsDisplay();
