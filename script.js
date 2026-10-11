@@ -1,7 +1,12 @@
+/*
+    Tic Tac Toe
+    Player setup, game rules, scoreboard, and animations.
+*/
+
+// Find the HTML elements we need.
 const cells = document.querySelectorAll(".cell");
 const turnMessage = document.getElementById("turn-message");
 
-const themeToggleButton = document.getElementById("theme-toggle-button");
 const playerForm = document.getElementById("player-form");
 const playerXInput = document.getElementById("player-x-name");
 const playerOInput = document.getElementById("player-o-name");
@@ -20,53 +25,35 @@ const restartButton = document.getElementById("restart-button");
 const resetScoresButton = document.getElementById("reset-scores-button");
 const resetAllDataButton = document.getElementById("reset-all-data-button");
 const resetStatisticsButton = document.getElementById("reset-statistics-button");
-
 const timerDisplay = document.getElementById("timer-display");
 const pauseGameButton = document.getElementById("pause-game-button");
 const turnTimeLimitSelect = document.getElementById("turn-time-limit");
 
-const humanSymbolSetting = document.getElementById("human-symbol-setting");
-const computerDifficultySetting = document.getElementById(
-    "computer-difficulty-setting"
-);
-
-const playerXGroup = document.getElementById("player-x-group");
-const playerOGroup = document.getElementById("player-o-group");
-const playerXLabel = document.getElementById("player-x-label");
-const playerOLabel = document.getElementById("player-o-label");
-
-const settingsForm = document.getElementById("settings-form");
-
-const SETTINGS_KEY = "tic-tac-toe-settings";
-const APP_DATA_KEY = "tic-tac-toe-app-data";
-
-const playerNames = { X: "", O: "" };
-const scores = { X: 0, O: 0, draws: 0 };
-
-const defaultSettings = {
-    theme: "light",
-    sound: "on",
-    startingPlayer: "X",
-    gameMode: "player-vs-player",
-    humanSymbol: "X",
-    difficulty: "easy",
-    timerEnabled: "off",
-    turnTimeLimit: "30"
+// Store the names assigned to X and O.
+const playerNames = {
+    X: "",
+    O: ""
 };
 
-const allowedValues = {
-    theme: ["light", "dark"],
-    sound: ["on", "off"],
-    startingPlayer: ["X", "O", "random"],
-    gameMode: ["player-vs-player", "player-vs-computer"],
-    humanSymbol: ["X", "O"],
-    difficulty: ["easy", "medium", "hard"],
-    timerEnabled: ["on", "off"],
-    turnTimeLimit: ["10", "15", "30", "60"]
+// X always takes the first turn.
+let currentPlayer = "X";
+
+// A game cannot be played until both names are submitted.
+let gameOver = true;
+let gamePaused = false;
+let timerInterval = null;
+let remainingSeconds = 30;
+let turnStartedAt = 0;
+let turnStartRemaining = 0;
+
+// Keep the scores in memory while the page remains open.
+const scores = {
+    X: 0,
+    O: 0,
+    draws: 0
 };
 
-const settings = { ...defaultSettings };
-
+// Statistics count completed games separately from the resettable scoreboard.
 const defaultStatistics = {
     totalGames: 0,
     xWins: 0,
@@ -77,101 +64,129 @@ const defaultStatistics = {
     bestStreakPlayer: "",
     bestStreak: 0
 };
+const statistics = Object.assign({}, defaultStatistics);
 
-const statistics = { ...defaultStatistics };
-
+// The eight possible winning combinations.
 const winningCombinations = [
+    // Rows
     [0, 1, 2],
     [3, 4, 5],
     [6, 7, 8],
+
+    // Columns
     [0, 3, 6],
     [1, 4, 7],
     [2, 5, 8],
+
+    // Diagonals
     [0, 4, 8],
     [2, 4, 6]
 ];
 
-let currentPlayer = "X";
-let gameOver = true;
-let gamePaused = false;
+// Restart a CSS animation whenever it needs to play again.
+function playAnimation(element, className) {
+    element.classList.remove(className);
 
-let activeGameMode = "player-vs-player";
-let activeHumanSymbol = "X";
+    // Force the browser to recognize the removal before re-adding the class.
+    void element.offsetWidth;
 
-let timerInterval = null;
-let computerMoveTimeout = null;
-let remainingSeconds = 30;
-let turnStartedAt = 0;
-let turnStartRemaining = 0;
+    element.classList.add(className);
+}
 
-let audioContext = null;
 
-/* ------------------------------
-   Local storage and settings
------------------------------- */
+/* ===================================
+   Settings: Theme, Sound, Starting Player
+   =================================== */
 
+// The settings panel in the HTML.
+const settingsForm = document.getElementById("settings-form");
+
+// The name used to save the settings in localStorage.
+const SETTINGS_KEY = "tic-tac-toe-settings";
+const APP_DATA_KEY = "tic-tac-toe-app-data";
+
+// The settings used on a first visit.
+const defaultSettings = {
+    theme: "light",        // "light" or "dark"
+    sound: "on",           // "on" or "off"
+    startingPlayer: "X",   // "X", "O", or "random"
+    timerEnabled: "off",   // "on" or "off"
+    turnTimeLimit: "30"    // Seconds allowed for each turn
+};
+
+// The only values each setting is allowed to have.
+const allowedValues = {
+    theme: ["light", "dark"],
+    sound: ["on", "off"],
+    startingPlayer: ["X", "O", "random"],
+    timerEnabled: ["on", "off"],
+    turnTimeLimit: ["10", "15", "30", "60"]
+};
+
+// The current settings (starts as a copy of the defaults).
+const settings = Object.assign({}, defaultSettings);
+
+// Load saved settings from localStorage.
 function loadSettings() {
     try {
         const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
 
-        if (saved && typeof saved === "object") {
+        if (saved) {
+            // Only accept values we know are valid.
             for (const key in allowedValues) {
                 if (allowedValues[key].includes(saved[key])) {
                     settings[key] = saved[key];
                 }
             }
-        } else if (
-            localStorage.getItem("tic-tac-toe-theme") === "dark"
-        ) {
+        } else if (localStorage.getItem("tic-tac-toe-theme") === "dark") {
+            // Keep a theme that was saved by the older version of this app.
             settings.theme = "dark";
         }
     } catch (error) {
-        // Use default settings if saved data cannot be read.
+        // If storage is unavailable or damaged, use the defaults.
     }
 }
 
+// Save the current settings to localStorage.
 function saveSettings() {
     try {
-        localStorage.setItem(
-            SETTINGS_KEY,
-            JSON.stringify(settings)
-        );
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (error) {
-        // The game can still work without saved settings.
+        // The settings still work for this page session
+        // even if the browser cannot save them.
     }
 
+    // Also save the settings alongside player names and scores.
     saveAppData();
 }
 
+// Save the information that should survive a page refresh.
 function saveAppData() {
     const appData = {
-        playerNames,
-        scores,
-        settings,
-        statistics
+        playerNames: playerNames,
+        scores: scores,
+        settings: settings,
+        statistics: statistics
     };
 
     try {
-        localStorage.setItem(
-            APP_DATA_KEY,
-            JSON.stringify(appData)
-        );
+        localStorage.setItem(APP_DATA_KEY, JSON.stringify(appData));
     } catch (error) {
-        // Saving is optional for the current game session.
+        // The game can still be played if browser storage is unavailable.
     }
 }
 
+// Load saved names, scores, and settings safely.
 function loadAppData() {
     try {
-        const saved = JSON.parse(
-            localStorage.getItem(APP_DATA_KEY)
-        );
+        const saved = JSON.parse(localStorage.getItem(APP_DATA_KEY));
 
-        if (!saved || typeof saved !== "object") {
+        // Missing data, invalid JSON, or an unexpected value is ignored.
+        if (!saved || typeof saved !== "object" || Array.isArray(saved)) {
             return;
         }
 
-        if (saved.playerNames) {
+        if (saved.playerNames && typeof saved.playerNames === "object") {
             if (typeof saved.playerNames.X === "string") {
                 playerNames.X = saved.playerNames.X.trim().slice(0, 30);
                 playerXInput.value = playerNames.X;
@@ -183,17 +198,18 @@ function loadAppData() {
             }
         }
 
-        if (saved.scores) {
+        if (saved.scores && typeof saved.scores === "object") {
             ["X", "O", "draws"].forEach(function (key) {
                 const value = saved.scores[key];
 
+                // Scores must be non-negative whole numbers.
                 if (Number.isSafeInteger(value) && value >= 0) {
                     scores[key] = value;
                 }
             });
         }
 
-        if (saved.settings) {
+        if (saved.settings && typeof saved.settings === "object") {
             for (const key in allowedValues) {
                 if (allowedValues[key].includes(saved.settings[key])) {
                     settings[key] = saved.settings[key];
@@ -201,39 +217,29 @@ function loadAppData() {
             }
         }
 
-        if (saved.statistics) {
-            const numberKeys = [
-                "totalGames",
-                "xWins",
-                "oWins",
-                "draws",
-                "currentStreak",
-                "bestStreak"
-            ];
+        if (saved.statistics && typeof saved.statistics === "object") {
+            const numberKeys = ["totalGames", "xWins", "oWins", "draws", "currentStreak", "bestStreak"];
 
             numberKeys.forEach(function (key) {
                 const value = saved.statistics[key];
-
                 if (Number.isSafeInteger(value) && value >= 0) {
                     statistics[key] = value;
                 }
             });
 
-            ["currentStreakPlayer", "bestStreakPlayer"].forEach(
-                function (key) {
-                    const value = saved.statistics[key];
-
-                    if (value === "X" || value === "O" || value === "") {
-                        statistics[key] = value;
-                    }
+            ["currentStreakPlayer", "bestStreakPlayer"].forEach(function (key) {
+                const value = saved.statistics[key];
+                if (value === "X" || value === "O" || value === "") {
+                    statistics[key] = value;
                 }
-            );
+            });
         }
     } catch (error) {
-        // Ignore invalid saved data and use defaults.
+        // If saved data is damaged or storage is blocked, use safe defaults.
     }
 }
 
+// Select the correct radio button for every setting.
 function updateSettingsForm() {
     for (const key in settings) {
         const radio = settingsForm.querySelector(
@@ -244,46 +250,26 @@ function updateSettingsForm() {
             radio.checked = true;
         }
 
-        const select = settingsForm.querySelector(
-            `select[name="${key}"]`
-        );
-
+        const select = settingsForm.querySelector(`select[name="${key}"]`);
         if (select) {
             select.value = settings[key];
         }
     }
 }
 
+// Apply the selected theme to the entire application.
+// Theme selection is controlled only by the Settings radio buttons.
 function applyTheme(theme) {
-    const selectedTheme = theme === "dark" ? "dark" : "light";
-
-    document.documentElement.setAttribute(
-        "data-theme",
-        selectedTheme
-    );
-
-    if (selectedTheme === "dark") {
-        themeToggleButton.textContent = "☀️ Light Mode";
-        themeToggleButton.setAttribute("aria-pressed", "true");
-    } else {
-        themeToggleButton.textContent = "🌙 Dark Mode";
-        themeToggleButton.setAttribute("aria-pressed", "false");
-    }
+    const selectedTheme = allowedValues.theme.includes(theme) ? theme : "light";
+    document.documentElement.setAttribute("data-theme", selectedTheme);
 }
 
-themeToggleButton.addEventListener("click", function () {
-    settings.theme =
-        settings.theme === "dark" ? "light" : "dark";
-
-    applyTheme(settings.theme);
-    updateSettingsForm();
-    saveSettings();
-});
-
+// When any radio button in the settings panel changes.
 settingsForm.addEventListener("change", function (event) {
     const key = event.target.name;
     const value = event.target.value;
 
+    // Ignore anything that is not a known setting.
     if (!allowedValues[key] || !allowedValues[key].includes(value)) {
         return;
     }
@@ -295,12 +281,9 @@ settingsForm.addEventListener("change", function (event) {
         applyTheme(value);
     }
 
+    // Play a short beep so the player can hear that sound is on.
     if (key === "sound") {
         playSound("on");
-    }
-
-    if (key === "gameMode" || key === "humanSymbol") {
-        updatePlayerSetupFields();
     }
 
     if (key === "timerEnabled" || key === "turnTimeLimit") {
@@ -314,93 +297,28 @@ settingsForm.addEventListener("change", function (event) {
     }
 });
 
-/* ------------------------------
-   Player setup and game mode
------------------------------- */
 
-function updatePlayerSetupFields() {
-    const computerMode =
-        settings.gameMode === "player-vs-computer";
+/* ===================================
+   Sound (made with the browser, no sound files needed)
+   =================================== */
 
-    humanSymbolSetting.hidden = !computerMode;
-    computerDifficultySetting.hidden = !computerMode;
+// Created the first time a sound is played.
+let audioContext = null;
 
-    if (computerMode) {
-        const humanIsX = settings.humanSymbol === "X";
-
-        playerXGroup.hidden = !humanIsX;
-        playerOGroup.hidden = humanIsX;
-
-        playerXLabel.textContent = humanIsX
-            ? "Your Name (X)"
-            : "Computer (X)";
-
-        playerOLabel.textContent = humanIsX
-            ? "Computer (O)"
-            : "Your Name (O)";
-
-        playerXInput.required = humanIsX;
-        playerOInput.required = !humanIsX;
-    } else {
-        playerXGroup.hidden = false;
-        playerOGroup.hidden = false;
-
-        playerXLabel.textContent = "Player 1 (X)";
-        playerOLabel.textContent = "Player 2 (O)";
-
-        playerXInput.required = true;
-        playerOInput.required = true;
-    }
-}
-
-function getStartingPlayer() {
-    if (settings.startingPlayer === "random") {
-        return Math.random() < 0.5 ? "X" : "O";
-    }
-
-    return settings.startingPlayer;
-}
-
-function isComputerTurn() {
-    return (
-        activeGameMode === "player-vs-computer" &&
-        currentPlayer !== activeHumanSymbol
-    );
-}
-
-function updateCellAvailability() {
-    const computerIsPlaying = isComputerTurn();
-
-    cells.forEach(function (cell) {
-        cell.disabled =
-            gameOver ||
-            gamePaused ||
-            computerIsPlaying ||
-            cell.textContent !== "";
-    });
-}
-
-/* ------------------------------
-   Sound effects
------------------------------- */
-
+// Play one short beep.
 function playTone(frequency, delay, duration) {
     const startTime = audioContext.currentTime + delay;
+
     const oscillator = audioContext.createOscillator();
     const volume = audioContext.createGain();
 
     oscillator.type = "sine";
     oscillator.frequency.value = frequency;
 
+    // Fade in and out quickly so the beep does not click.
     volume.gain.setValueAtTime(0.0001, startTime);
-    volume.gain.exponentialRampToValueAtTime(
-        0.15,
-        startTime + 0.01
-    );
-    volume.gain.exponentialRampToValueAtTime(
-        0.0001,
-        startTime + duration
-    );
+    volume.gain.exponentialRampToValueAtTime(0.15, startTime + 0.01);
+    volume.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
     oscillator.connect(volume);
     volume.connect(audioContext.destination);
@@ -409,12 +327,14 @@ function playTone(frequency, delay, duration) {
     oscillator.stop(startTime + duration + 0.02);
 }
 
+// Play a named sound, but only when Sound is set to "on".
 function playSound(name) {
     if (settings.sound !== "on") {
         return;
     }
 
     try {
+        // Browsers only allow audio after a click, so create it here.
         if (!audioContext) {
             const AudioContextClass =
                 window.AudioContext || window.webkitAudioContext;
@@ -445,14 +365,26 @@ function playSound(name) {
             playTone(660, 0, 0.1);
         }
     } catch (error) {
-        // Sound is optional.
+        // If sound fails, the game keeps working silently.
     }
 }
 
-/* ------------------------------
-   Timer and pause controls
------------------------------- */
+// Choose who goes first in a new game, using the Starting Player setting.
+function getStartingPlayer() {
+    if (settings.startingPlayer === "random") {
+        return Math.random() < 0.5 ? "X" : "O";
+    }
 
+    return settings.startingPlayer;
+}
+
+// Restore settings first, then the complete saved application data.
+loadSettings();
+loadAppData();
+applyTheme(settings.theme);
+updateSettingsForm();
+
+// Stop the one active interval, if there is one.
 function stopTimer() {
     if (timerInterval !== null) {
         clearInterval(timerInterval);
@@ -460,16 +392,9 @@ function stopTimer() {
     }
 }
 
-function stopComputerMove() {
-    if (computerMoveTimeout !== null) {
-        clearTimeout(computerMoveTimeout);
-        computerMoveTimeout = null;
-    }
-}
-
+// Show the countdown only when the optional timer is enabled.
 function updateTimerDisplay() {
     const timerEnabled = settings.timerEnabled === "on";
-
     timerDisplay.hidden = !timerEnabled;
 
     if (!timerEnabled) {
@@ -480,13 +405,10 @@ function updateTimerDisplay() {
     timerDisplay.textContent = gamePaused
         ? `Paused — ${remainingSeconds}s remaining`
         : `Time remaining: ${remainingSeconds}s`;
-
-    timerDisplay.classList.toggle(
-        "timer-low",
-        remainingSeconds <= 5
-    );
+    timerDisplay.classList.toggle("timer-low", remainingSeconds <= 5);
 }
 
+// Start a fresh countdown for the player whose turn it is.
 function startTurnTimer(resetTime = true) {
     stopTimer();
 
@@ -496,27 +418,16 @@ function startTurnTimer(resetTime = true) {
 
     turnStartedAt = Date.now();
     turnStartRemaining = remainingSeconds;
-
     updateTimerDisplay();
 
-    if (
-        settings.timerEnabled !== "on" ||
-        gameOver ||
-        gamePaused
-    ) {
+    if (settings.timerEnabled !== "on" || gameOver || gamePaused) {
         return;
     }
 
+    // There is always at most one interval because stopTimer() runs first.
     timerInterval = setInterval(function () {
-        const elapsedSeconds = Math.floor(
-            (Date.now() - turnStartedAt) / 1000
-        );
-
-        remainingSeconds = Math.max(
-            0,
-            turnStartRemaining - elapsedSeconds
-        );
-
+        const elapsedSeconds = Math.floor((Date.now() - turnStartedAt) / 1000);
+        remainingSeconds = Math.max(0, turnStartRemaining - elapsedSeconds);
         updateTimerDisplay();
 
         if (remainingSeconds <= 0) {
@@ -526,91 +437,67 @@ function startTurnTimer(resetTime = true) {
     }, 250);
 }
 
+// If the current player runs out of time, the other player wins.
 function finishGameByTimeout() {
-    if (
-        gameOver ||
-        gamePaused ||
-        settings.timerEnabled !== "on"
-    ) {
+    if (gameOver || gamePaused || settings.timerEnabled !== "on") {
         return;
     }
 
     gameOver = true;
     stopTimer();
-    stopComputerMove();
 
     const winner = currentPlayer === "X" ? "O" : "X";
-
     scores[winner]++;
-
     updateScoreboard();
     recordCompletedGame(winner);
     playSound("win");
-
-    showAnimatedMessage(
-        `${playerNames[winner]} (${winner}) wins — time ran out for ${playerNames[currentPlayer]} (${currentPlayer})!`
-    );
-
+    showAnimatedMessage(`${playerNames[winner]} (${winner}) wins — time ran out for ${playerNames[currentPlayer]} (${currentPlayer})!`);
     pauseGameButton.disabled = true;
     pauseGameButton.textContent = "Pause Game";
-
-    updateCellAvailability();
     updateTimerDisplay();
 }
 
+// Pause or resume the current turn without losing its remaining time.
 function toggleGamePause() {
     if (gameOver) {
         return;
     }
 
     if (!gamePaused) {
+        // Calculate the remaining time before stopping the interval.
         if (settings.timerEnabled === "on") {
-            const elapsedSeconds = Math.floor(
-                (Date.now() - turnStartedAt) / 1000
-            );
-
-            remainingSeconds = Math.max(
-                0,
-                turnStartRemaining - elapsedSeconds
-            );
+            const elapsedSeconds = Math.floor((Date.now() - turnStartedAt) / 1000);
+            remainingSeconds = Math.max(0, turnStartRemaining - elapsedSeconds);
         }
-
         gamePaused = true;
         stopTimer();
-        stopComputerMove();
-
-        updateCellAvailability();
+        cells.forEach(function (cell) { cell.disabled = true; });
         pauseGameButton.textContent = "Resume Game";
         updateTimerDisplay();
 
-        if (
-            remainingSeconds <= 0 &&
-            settings.timerEnabled === "on"
-        ) {
+        if (remainingSeconds <= 0 && settings.timerEnabled === "on") {
+            // A timeout that happened just as Pause was clicked still counts.
             gamePaused = false;
             finishGameByTimeout();
         }
-
         return;
     }
 
     gamePaused = false;
+    cells.forEach(function (cell) {
+        cell.disabled = cell.textContent !== "";
+    });
     pauseGameButton.textContent = "Pause Game";
-
-    updateCellAvailability();
     startTurnTimer(false);
-
-    if (isComputerTurn()) {
-        scheduleComputerMove();
-    }
 }
 
-pauseGameButton.addEventListener("click", toggleGamePause);
+// Display whose turn it is.
+function updateTurnMessage() {
+    turnMessage.textContent =
+        `${playerNames[currentPlayer]}'s turn (${currentPlayer})`;
+}
 
-/* ------------------------------
-   Scoreboard and statistics
------------------------------- */
-
+// Update the scoreboard display from the stored scores.
 function updateScoreboard() {
     scoreXName.textContent = playerNames.X || "Player X";
     scoreOName.textContent = playerNames.O || "Player O";
@@ -620,6 +507,7 @@ function updateScoreboard() {
     scoreDrawsDisplay.textContent = scores.draws;
 }
 
+// Display the names and symbols assigned to each player.
 function updatePlayerDisplay() {
     displayPlayerX.textContent = playerNames.X;
     displayPlayerO.textContent = playerNames.O;
@@ -627,52 +515,36 @@ function updatePlayerDisplay() {
     updateScoreboard();
 }
 
+// Return a percentage safely, avoiding division by zero.
 function calculatePercentage(part, total) {
     return total === 0 ? 0 : Math.round((part / total) * 100);
 }
 
+// Refresh all statistics shown in the interface.
 function updateStatisticsDisplay() {
-    document.getElementById("stat-total-games").textContent =
-        statistics.totalGames;
-
-    document.getElementById("stat-x-wins").textContent =
-        statistics.xWins;
-
-    document.getElementById("stat-o-wins").textContent =
-        statistics.oWins;
-
-    document.getElementById("stat-draws").textContent =
-        statistics.draws;
+    document.getElementById("stat-total-games").textContent = statistics.totalGames;
+    document.getElementById("stat-x-wins").textContent = statistics.xWins;
+    document.getElementById("stat-o-wins").textContent = statistics.oWins;
+    document.getElementById("stat-draws").textContent = statistics.draws;
 
     document.getElementById("stat-x-percentage").textContent =
-        calculatePercentage(
-            statistics.xWins,
-            statistics.totalGames
-        ) + "%";
-
+        calculatePercentage(statistics.xWins, statistics.totalGames) + "%";
     document.getElementById("stat-o-percentage").textContent =
-        calculatePercentage(
-            statistics.oWins,
-            statistics.totalGames
-        ) + "%";
-
+        calculatePercentage(statistics.oWins, statistics.totalGames) + "%";
     document.getElementById("stat-draw-percentage").textContent =
-        calculatePercentage(
-            statistics.draws,
-            statistics.totalGames
-        ) + "%";
+        calculatePercentage(statistics.draws, statistics.totalGames) + "%";
 
     document.getElementById("stat-current-streak").textContent =
         statistics.currentStreak > 0
             ? `${statistics.currentStreakPlayer}: ${statistics.currentStreak}`
             : "None";
-
     document.getElementById("stat-best-streak").textContent =
         statistics.bestStreak > 0
             ? `${statistics.bestStreakPlayer}: ${statistics.bestStreak}`
             : "None";
 }
 
+// Record exactly one completed game and update the winning streak.
 function recordCompletedGame(result) {
     statistics.totalGames++;
 
@@ -704,61 +576,14 @@ function recordCompletedGame(result) {
     saveAppData();
 }
 
+// Reset only the statistics, leaving the existing scoreboard untouched.
 function resetStatistics() {
     Object.assign(statistics, defaultStatistics);
-
     updateStatisticsDisplay();
     saveAppData();
 }
 
-resetStatisticsButton.addEventListener("click", function () {
-    const confirmed = window.confirm(
-        "Reset statistics? This keeps the scoreboard unchanged."
-    );
-
-    if (confirmed) {
-        resetStatistics();
-    }
-});
-
-/* ------------------------------
-   Board helpers and win detection
------------------------------- */
-
-function getBoardState() {
-    return Array.from(cells).map(function (cell) {
-        return cell.textContent || "";
-    });
-}
-
-function getAvailableMoves(board) {
-    const availableMoves = [];
-
-    for (let index = 0; index < board.length; index++) {
-        if (board[index] === "") {
-            availableMoves.push(index);
-        }
-    }
-
-    return availableMoves;
-}
-
-function getWinnerFromBoard(board) {
-    for (const combination of winningCombinations) {
-        const [a, b, c] = combination;
-
-        if (
-            board[a] !== "" &&
-            board[a] === board[b] &&
-            board[b] === board[c]
-        ) {
-            return board[a];
-        }
-    }
-
-    return null;
-}
-
+// Check all possible winning combinations.
 function checkWinner() {
     for (const combination of winningCombinations) {
         const [a, b, c] = combination;
@@ -768,6 +593,7 @@ function checkWinner() {
             cells[b].textContent === currentPlayer &&
             cells[c].textContent === currentPlayer
         ) {
+            // Highlight the three winning cells.
             cells[a].classList.add("winning-cell");
             cells[b].classList.add("winning-cell");
             cells[c].classList.add("winning-cell");
@@ -779,329 +605,64 @@ function checkWinner() {
     return false;
 }
 
+// Check whether every cell is occupied.
 function checkDraw() {
     return Array.from(cells).every(function (cell) {
         return cell.textContent !== "";
     });
 }
 
+// Display a message and animate its appearance.
 function showAnimatedMessage(message) {
     turnMessage.textContent = message;
-
-    turnMessage.classList.remove("win-message");
-    void turnMessage.offsetWidth;
-    turnMessage.classList.add("win-message");
+    playAnimation(turnMessage, "win-message");
 }
 
-function updateTurnMessage() {
-    turnMessage.textContent =
-        `${playerNames[currentPlayer]}'s turn (${currentPlayer})`;
-}
-
-/* ------------------------------
-   Easy AI: random valid move
------------------------------- */
-
-function getEasyMove(board) {
-    const availableMoves = getAvailableMoves(board);
-
-    if (availableMoves.length === 0) {
-        return null;
-    }
-
-    const randomIndex = Math.floor(
-        Math.random() * availableMoves.length
-    );
-
-    return availableMoves[randomIndex];
-}
-
-/* ------------------------------
-   Medium AI: win or block
------------------------------- */
-
-function findWinningMove(board, symbol) {
-    const availableMoves = getAvailableMoves(board);
-
-    for (const index of availableMoves) {
-        board[index] = symbol;
-
-        const wins = getWinnerFromBoard(board) === symbol;
-
-        // Undo the temporary move so the real board is unchanged.
-        board[index] = "";
-
-        if (wins) {
-            return index;
-        }
-    }
-
-    return null;
-}
-
-function getMediumMove(board) {
-    const computerSymbol = currentPlayer;
-    const humanSymbol = activeHumanSymbol;
-
-    // First, win immediately if possible.
-    const winningMove = findWinningMove(
-        board,
-        computerSymbol
-    );
-
-    if (winningMove !== null) {
-        return winningMove;
-    }
-
-    // Otherwise, block the human's immediate winning move.
-    const blockingMove = findWinningMove(
-        board,
-        humanSymbol
-    );
-
-    if (blockingMove !== null) {
-        return blockingMove;
-    }
-
-    // Prefer the center if it is available.
-    if (board[4] === "") {
-        return 4;
-    }
-
-    // Otherwise, prefer an available corner.
-    const corners = [0, 2, 6, 8].filter(function (index) {
-        return board[index] === "";
-    });
-
-    if (corners.length > 0) {
-        return corners[
-            Math.floor(Math.random() * corners.length)
-        ];
-    }
-
-    // If no corner is available, choose an empty side.
-    return getEasyMove(board);
-}
-
-/* ------------------------------
-   Hard AI: Minimax algorithm
------------------------------- */
-
-function minimax(board, depth, maximizing, computerSymbol, humanSymbol) {
-    const winner = getWinnerFromBoard(board);
-
-    // A computer win is a good result.
-    if (winner === computerSymbol) {
-        return 10 - depth;
-    }
-
-    // A human win is a bad result for the computer.
-    if (winner === humanSymbol) {
-        return depth - 10;
-    }
-
-    // If no cells remain, the game is a draw.
-    const availableMoves = getAvailableMoves(board);
-
-    if (availableMoves.length === 0) {
-        return 0;
-    }
-
-    if (maximizing) {
-        let bestScore = -Infinity;
-
-        for (const index of availableMoves) {
-            board[index] = computerSymbol;
-
-            const score = minimax(
-                board,
-                depth + 1,
-                false,
-                computerSymbol,
-                humanSymbol
-            );
-
-            board[index] = "";
-            bestScore = Math.max(bestScore, score);
-        }
-
-        return bestScore;
-    }
-
-    let bestScore = Infinity;
-
-    for (const index of availableMoves) {
-        board[index] = humanSymbol;
-
-        const score = minimax(
-            board,
-            depth + 1,
-            true,
-            computerSymbol,
-            humanSymbol
-        );
-
-        board[index] = "";
-        bestScore = Math.min(bestScore, score);
-    }
-
-    return bestScore;
-}
-
-function getHardMove(board) {
-    const computerSymbol = currentPlayer;
-    const humanSymbol = activeHumanSymbol;
-    const availableMoves = getAvailableMoves(board);
-
-    let bestMove = null;
-    let bestScore = -Infinity;
-
-    for (const index of availableMoves) {
-        // Try this possible computer move.
-        board[index] = computerSymbol;
-
-        // Imagine the human and computer taking turns optimally.
-        const score = minimax(
-            board,
-            0,
-            false,
-            computerSymbol,
-            humanSymbol
-        );
-
-        // Undo the test move.
-        board[index] = "";
-
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove = index;
-        }
-    }
-
-    return bestMove;
-}
-
-/* ------------------------------
-   Select a move for the computer
------------------------------- */
-
-function getComputerMove() {
-    const board = getBoardState();
-
-    if (settings.difficulty === "medium") {
-        return getMediumMove(board);
-    }
-
-    if (settings.difficulty === "hard") {
-        return getHardMove(board);
-    }
-
-    return getEasyMove(board);
-}
-
-function scheduleComputerMove() {
-    stopComputerMove();
-    updateCellAvailability();
-
-    if (gameOver || gamePaused || !isComputerTurn()) {
-        return;
-    }
-
-    turnMessage.textContent =
-        `${playerNames[currentPlayer]} (${currentPlayer}) is thinking...`;
-
-    computerMoveTimeout = setTimeout(function () {
-        computerMoveTimeout = null;
-
-        if (gameOver || gamePaused || !isComputerTurn()) {
-            return;
-        }
-
-        const moveIndex = getComputerMove();
-
-        if (moveIndex === null || moveIndex === undefined) {
-            return;
-        }
-
-        makeMove(moveIndex);
-    }, 500);
-}
-
-/* ------------------------------
-   Game move handling
------------------------------- */
-
+// Handle a player clicking a cell.
 function handleCellClick(cell) {
-    if (
-        gameOver ||
-        gamePaused ||
-        isComputerTurn() ||
-        cell.textContent !== ""
-    ) {
+    // Prevent moves before setup or after the game ends.
+    if (gameOver || gamePaused) {
         return;
     }
 
-    makeMove(Array.from(cells).indexOf(cell));
-}
-
-function makeMove(boardIndex) {
-    if (
-        gameOver ||
-        gamePaused ||
-        boardIndex < 0 ||
-        boardIndex >= cells.length ||
-        cells[boardIndex].textContent !== ""
-    ) {
+    // Prevent a cell from being selected twice.
+    if (cell.textContent !== "") {
         return;
     }
 
-    stopComputerMove();
-
-    const cell = cells[boardIndex];
-
+    // Place X or O.
     cell.textContent = currentPlayer;
-    cell.setAttribute(
-        "aria-label",
-        `Cell ${boardIndex + 1}: ${currentPlayer}`
-    );
 
-    cell.classList.remove("mark-pop");
-    void cell.offsetWidth;
-    cell.classList.add("mark-pop");
+    // Animate the new symbol.
+    playAnimation(cell, "mark-pop");
 
+    // Check for a win BEFORE checking for a draw.
     if (checkWinner()) {
         gameOver = true;
-
         stopTimer();
-        stopComputerMove();
-
         pauseGameButton.disabled = true;
 
         playSound("win");
 
+        // Add one point to the winner's score.
         scores[currentPlayer]++;
 
         updateScoreboard();
         recordCompletedGame(currentPlayer);
 
+        // Show and animate the winning message.
         showAnimatedMessage(
             `${playerNames[currentPlayer]} (${currentPlayer}) wins!`
         );
 
-        updateCellAvailability();
-        updateTimerDisplay();
-
         return;
     }
 
+    // If nobody won and all cells are full, it is a draw.
     if (checkDraw()) {
         gameOver = true;
-
         stopTimer();
-        stopComputerMove();
-
         pauseGameButton.disabled = true;
-
         scores.draws++;
 
         playSound("draw");
@@ -1109,134 +670,108 @@ function makeMove(boardIndex) {
         updateScoreboard();
         recordCompletedGame("draw");
 
+        // Show and animate the draw message.
         showAnimatedMessage("It's a Draw!");
-
-        updateCellAvailability();
-        updateTimerDisplay();
 
         return;
     }
 
+    // Play the move sound for the player who just moved.
     playSound(currentPlayer === "X" ? "x" : "o");
 
-    // Switch to the other player.
+    // Switch players.
     currentPlayer = currentPlayer === "X" ? "O" : "X";
 
     updateTurnMessage();
-    updateCellAvailability();
-
-    // Each new turn receives a fresh countdown.
     startTurnTimer(true);
-
-    // Automatically schedule a computer move if needed.
-    if (isComputerTurn()) {
-        scheduleComputerMove();
-    }
 }
 
+// Start a new game without resetting the scoreboard.
+function restartGame() {
+    // Clear symbols, animations, and winning highlights.
+    cells.forEach(function (cell) {
+        cell.textContent = "";
+
+        cell.classList.remove(
+            "winning-cell",
+            "mark-pop"
+        );
+
+        cell.disabled = false;
+    });
+
+    // Remove the previous message animation.
+    turnMessage.classList.remove("win-message");
+
+    // Reset the current game state.
+    // The Starting Player setting decides who goes first.
+    stopTimer();
+    currentPlayer = getStartingPlayer();
+    gameOver = false;
+    gamePaused = false;
+    pauseGameButton.disabled = false;
+    pauseGameButton.textContent = "Pause Game";
+
+    // Show the first player's turn and begin its countdown.
+    updateTurnMessage();
+    startTurnTimer(true);
+}
+
+// Validate names and begin a new game.
+playerForm.addEventListener("submit", function (event) {
+    // Prevent the browser from reloading the page.
+    event.preventDefault();
+
+    // Remove spaces at the beginning and end of each name.
+    const nameX = playerXInput.value.trim();
+    const nameO = playerOInput.value.trim();
+
+    // Both names are required.
+    if (nameX === "" || nameO === "") {
+        validationMessage.textContent =
+            "Please enter a name for both Player 1 and Player 2.";
+
+        return;
+    }
+
+    // Save the valid names.
+    playerNames.X = nameX;
+    playerNames.O = nameO;
+
+    // Clear any previous validation message.
+    validationMessage.textContent = "";
+
+    // Update the names shown in the interface.
+    updatePlayerDisplay();
+
+    // A valid submission starts a fresh game.
+    restartGame();
+
+    // Save the names and current scores.
+    saveAppData();
+});
+
+// Attach one click listener to each cell.
 cells.forEach(function (cell) {
     cell.addEventListener("click", function () {
         handleCellClick(cell);
     });
 });
 
-/* ------------------------------
-   Start and restart games
------------------------------- */
+// Pause or resume the current game.
+pauseGameButton.addEventListener("click", toggleGamePause);
 
-function restartGame() {
-    stopTimer();
-    stopComputerMove();
-
-    cells.forEach(function (cell, index) {
-        cell.textContent = "";
-        cell.disabled = false;
-
-        cell.setAttribute("aria-label", `Cell ${index + 1}`);
-
-        cell.classList.remove("winning-cell", "mark-pop");
-    });
-
-    turnMessage.classList.remove("win-message");
-
-    activeGameMode = settings.gameMode;
-    activeHumanSymbol = settings.humanSymbol;
-
-    currentPlayer = getStartingPlayer();
-
-    gameOver = false;
-    gamePaused = false;
-
-    pauseGameButton.disabled = false;
-    pauseGameButton.textContent = "Pause Game";
-
-    updateTurnMessage();
-    updateCellAvailability();
-
-    startTurnTimer(true);
-
-    if (isComputerTurn()) {
-        scheduleComputerMove();
-    }
-}
-
-playerForm.addEventListener("submit", function (event) {
-    event.preventDefault();
-
-    const nameX = playerXInput.value.trim();
-    const nameO = playerOInput.value.trim();
-
-    if (settings.gameMode === "player-vs-computer") {
-        const humanName =
-            settings.humanSymbol === "X" ? nameX : nameO;
-
-        if (humanName === "") {
-            validationMessage.textContent =
-                "Please enter your name.";
-
-            return;
-        }
-
-        playerNames.X =
-            settings.humanSymbol === "X"
-                ? humanName
-                : "Computer";
-
-        playerNames.O =
-            settings.humanSymbol === "O"
-                ? humanName
-                : "Computer";
-    } else {
-        if (nameX === "" || nameO === "") {
-            validationMessage.textContent =
-                "Please enter a name for both players.";
-
-            return;
-        }
-
-        playerNames.X = nameX;
-        playerNames.O = nameO;
-    }
-
-    validationMessage.textContent = "";
-
-    updatePlayerDisplay();
-
-    restartGame();
-
-    restartButton.disabled = false;
-
-    saveAppData();
-});
-
+// Restart the game while keeping the scores.
 restartButton.addEventListener("click", function () {
-    if (!playerNames.X || !playerNames.O) {
+    // Do not restart until both player names are set.
+    if (playerNames.X === "" || playerNames.O === "") {
         return;
     }
 
     restartGame();
 });
 
+// Reset only the scores. Do not affect the current game.
 resetScoresButton.addEventListener("click", function () {
     scores.X = 0;
     scores.O = 0;
@@ -1246,104 +781,217 @@ resetScoresButton.addEventListener("click", function () {
     saveAppData();
 });
 
-/* ------------------------------
-   Reset all saved app data
------------------------------- */
-
+// Delete all saved application data only after confirmation.
 resetAllDataButton.addEventListener("click", function () {
     const confirmed = window.confirm(
-        "Reset all data? This deletes player names, scores, statistics, and settings."
+        "Reset all data? This will delete saved player names, scoreboard scores, statistics, and settings."
     );
 
     if (!confirmed) {
         return;
     }
 
+    // Remove current and older storage keys used by this app.
     try {
         localStorage.removeItem(APP_DATA_KEY);
         localStorage.removeItem(SETTINGS_KEY);
         localStorage.removeItem("tic-tac-toe-theme");
     } catch (error) {
-        // Continue resetting the visible app.
+        // Continue resetting the visible app even if storage is unavailable.
     }
 
+    // Restore the in-memory defaults.
     playerNames.X = "";
     playerNames.O = "";
-
     scores.X = 0;
     scores.O = 0;
     scores.draws = 0;
-
     Object.assign(statistics, defaultStatistics);
-    Object.assign(settings, defaultSettings);
 
+    Object.assign(settings, defaultSettings);
     playerXInput.value = "";
     playerOInput.value = "";
-
     validationMessage.textContent = "";
 
+    // Stop the timer and clear pause state before resetting the board.
     stopTimer();
-    stopComputerMove();
-
     gamePaused = false;
-    gameOver = true;
-    currentPlayer = "X";
-
-    activeGameMode = defaultSettings.gameMode;
-    activeHumanSymbol = defaultSettings.humanSymbol;
-
     remainingSeconds = Number(defaultSettings.turnTimeLimit);
+    pauseGameButton.disabled = true;
+    pauseGameButton.textContent = "Pause Game";
+    updateTimerDisplay();
 
-    cells.forEach(function (cell, index) {
+    // Clear the board and return the game to its initial state.
+    cells.forEach(function (cell) {
         cell.textContent = "";
         cell.disabled = true;
-
-        cell.setAttribute("aria-label", `Cell ${index + 1}`);
-
         cell.classList.remove("winning-cell", "mark-pop");
     });
 
+    gameOver = true;
+    currentPlayer = "X";
     restartButton.disabled = true;
-
-    pauseGameButton.disabled = true;
-    pauseGameButton.textContent = "Pause Game";
-
-    turnMessage.textContent = "Enter player names to start.";
+    turnMessage.textContent = "Enter both player names to start.";
     turnMessage.classList.remove("win-message");
 
     updatePlayerDisplay();
     updateStatisticsDisplay();
-    updatePlayerSetupFields();
-    updateCellAvailability();
-
     applyTheme(settings.theme);
     updateSettingsForm();
-    updateTimerDisplay();
 });
 
-/* ------------------------------
-   Initialize the application
------------------------------- */
+// Reset statistics after asking for confirmation.
+resetStatisticsButton.addEventListener("click", function () {
+    const confirmed = window.confirm(
+        "Reset statistics? This clears game totals, percentages, and streaks but keeps the scoreboard."
+    );
 
-loadSettings();
-loadAppData();
+    if (confirmed) {
+        resetStatistics();
+    }
+});
 
-applyTheme(settings.theme);
-updateSettingsForm();
-updatePlayerSetupFields();
-
-cells.forEach(function (cell, index) {
+// Set up the initial screen.
+cells.forEach(function (cell) {
     cell.disabled = true;
-    cell.setAttribute("aria-label", `Cell ${index + 1}`);
 });
 
 restartButton.disabled = true;
 pauseGameButton.disabled = true;
-
 remainingSeconds = Number(settings.turnTimeLimit);
-
 turnTimeLimitSelect.value = settings.turnTimeLimit;
-
 updateTimerDisplay();
+
+// Enable the restart button once valid names are submitted.
+playerForm.addEventListener("submit", function () {
+    if (playerNames.X !== "" && playerNames.O !== "") {
+        restartButton.disabled = false;
+    }
+});
+
+// Show the saved scoreboard and statistics on page load.
 updateScoreboard();
 updateStatisticsDisplay();
+/* ===================================
+   Hamburger menu navigation
+   =================================== */
+const menuOpenButton = document.getElementById("menu-open-button");
+const menuCloseButton = document.getElementById("menu-close-button");
+const appMenu = document.getElementById("app-menu");
+const menuBackdrop = document.getElementById("menu-backdrop");
+const menuLinks = document.querySelectorAll(".app-menu-link");
+
+function openAppMenu() {
+    appMenu.hidden = false;
+    menuBackdrop.hidden = false;
+    appMenu.setAttribute("aria-hidden", "false");
+    menuOpenButton.setAttribute("aria-expanded", "true");
+    document.body.classList.add("menu-open");
+    menuCloseButton.focus();
+}
+
+function closeAppMenu(returnFocus = true) {
+    appMenu.hidden = true;
+    menuBackdrop.hidden = true;
+    appMenu.setAttribute("aria-hidden", "true");
+    menuOpenButton.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("menu-open");
+
+    if (returnFocus) {
+        menuOpenButton.focus();
+    }
+}
+
+menuOpenButton.addEventListener("click", openAppMenu);
+menuCloseButton.addEventListener("click", function () {
+    closeAppMenu();
+});
+
+// Clicking the dimmed area outside the sidebar closes the menu.
+menuBackdrop.addEventListener("click", function () {
+    closeAppMenu();
+});
+
+// Escape closes the menu. Tab and Shift+Tab stay within the open menu.
+document.addEventListener("keydown", function (event) {
+    if (appMenu.hidden) {
+        return;
+    }
+
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeAppMenu();
+        return;
+    }
+
+    if (event.key === "Tab") {
+        const focusableItems = [menuCloseButton, ...menuLinks];
+        const firstItem = focusableItems[0];
+        const lastItem = focusableItems[focusableItems.length - 1];
+
+        if (event.shiftKey && document.activeElement === firstItem) {
+            event.preventDefault();
+            lastItem.focus();
+        } else if (!event.shiftKey && document.activeElement === lastItem) {
+            event.preventDefault();
+            firstItem.focus();
+        }
+    }
+});
+
+// Show exactly one top-level app section at a time without reinitializing game state.
+function navigateToSection(targetId) {
+    const sectionIds = ["game-section", "settings-section", "statistics-section"];
+    const targetSection = document.getElementById(targetId);
+
+    if (!targetSection || !sectionIds.includes(targetId)) {
+        return;
+    }
+
+    sectionIds.forEach(function (sectionId) {
+        const section = document.getElementById(sectionId);
+        const isActive = sectionId === targetId;
+
+        section.hidden = !isActive;
+        section.setAttribute("aria-hidden", String(!isActive));
+    });
+
+    menuLinks.forEach(function (link) {
+        const isActive = link.dataset.menuTarget === targetId;
+        link.classList.toggle("is-active", isActive);
+
+        if (isActive) {
+            link.setAttribute("aria-current", "page");
+        } else {
+            link.removeAttribute("aria-current");
+        }
+    });
+
+    const targetHeading = targetSection.querySelector("h1, h2");
+    targetSection.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
+        block: "start"
+    });
+
+    if (targetHeading) {
+        targetHeading.focus({ preventScroll: true });
+    }
+}
+
+menuLinks.forEach(function (link) {
+    link.addEventListener("click", function () {
+        closeAppMenu(false);
+        navigateToSection(link.dataset.menuTarget);
+    });
+});
+
+// Let players return directly from Statistics to the game board.
+const returnToGameButton = document.getElementById("return-to-game-button");
+returnToGameButton.addEventListener("click", function () {
+    navigateToSection("game-section");
+});
+
+ // Set the initial view and active menu item; this does not reset the board or saved data.
+navigateToSection("game-section");

@@ -55,11 +55,11 @@ button {
 
 /* ---------- Page heading ---------- */
 
-/* Header: empty | title | toggle. The 1fr side columns keep the title centered. */
+/* The hamburger occupies the left column while the title stays centered. */
 .page-header {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
-    grid-template-areas: "spacer title toggle";
+    grid-template-areas: "menu title spacer";
     align-items: center;
     column-gap: 12px;
     margin-bottom: 30px;
@@ -71,10 +71,6 @@ button {
     min-width: 0;
 }
 
-.theme-toggle {
-    grid-area: toggle;
-    justify-self: end;
-}
 
 .page-header h1 {
     margin: 0;
@@ -824,11 +820,6 @@ button {
     color: #fca5a5;
 }
 
-/* Theme toggle button */
-#theme-toggle-button {
-    cursor: pointer;
-}
-
 /* Keyboard focus remains visible */
 button:focus-visible,
 input:focus-visible,
@@ -914,7 +905,7 @@ input:focus-visible,
     }
 }
 
-/* Secondary buttons (Reset Scores and the theme toggle) hover color */
+/* Secondary buttons use a theme-aware hover color. */
 .button-secondary:hover:not(:disabled) {
     background-color: var(--secondary-hover-bg);
 }
@@ -943,25 +934,6 @@ input:focus-visible,
     color: var(--symbol-o-text);
     background: var(--symbol-o-bg);
 }
-
-/* ---------- Theme toggle button ---------- */
-
-.theme-toggle {
-    min-width: 9.5rem;          /* keeps the width steady when the label changes */
-    min-height: 40px;
-    padding: 8px 16px;
-    gap: 6px;
-    border-radius: 999px;
-    font-size: 0.875rem;
-    white-space: nowrap;
-}
-
-@media (max-width: 600px) {
-    .theme-toggle {
-        justify-self: end;      /* top-right corner on mobile too */
-    }
-}
-
 
 /* ===================================
    Settings Panel
@@ -1104,6 +1076,76 @@ input:focus-visible,
 }
 
 
+
+/* ---------- Organized Statistics panel ---------- */
+.statistics-panel {
+    scroll-margin-top: 20px;
+}
+
+.section-description {
+    margin: 6px 0 0;
+    color: var(--muted-text);
+    line-height: 1.5;
+}
+
+.statistics-group {
+    margin-top: 22px;
+}
+
+.statistics-group h3 {
+    margin: 0 0 10px;
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.statistics-group .statistics-grid {
+    margin: 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.statistics-group .statistics-grid-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.statistics-group .statistics-grid-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.statistics-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.statistics-actions .button {
+    flex: 1 1 180px;
+}
+
+#game-section,
+#settings-section,
+#statistics-section {
+    scroll-margin-top: 20px;
+}
+
+@media (max-width: 600px) {
+    .statistics-group .statistics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .statistics-group .statistics-grid-three {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .statistics-actions {
+        flex-direction: column;
+    }
+
+    .statistics-actions .button {
+        width: 100%;
+    }
+}
+
 /* ---------- Optional per-turn game timer ---------- */
 .timer-limit-label {
     display: block;
@@ -1140,4 +1182,177 @@ input:focus-visible,
 .pause-game-button {
     margin: 0 auto 16px;
     display: block;
+}
+
+
+/* Only the selected top-level view is displayed. The hidden attribute must win over panel styles. */
+.app-section[hidden] {
+    display: none !important;
+}
+
+.app-section:not([hidden]) {
+    display: block;
+}
+
+.app-menu-link.is-active {
+    color: var(--text-color);
+    background: var(--secondary-hover-bg);
+    font-weight: 750;
+    box-shadow: inset 3px 0 0 var(--accent-color, var(--primary));
+}
+
+.game-section {
+    min-width: 0;
+}
+
+/* ---------- Accessible hamburger navigation ---------- */
+.menu-open-button {
+    grid-area: menu;
+    justify-self: start;
+    align-self: start;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-color);
+    background: var(--surface-bg);
+    font-size: 1.55rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.menu-open-button:hover,
+.menu-close-button:hover,
+.app-menu-link:hover {
+    background: var(--secondary-hover-bg);
+}
+
+.menu-open-button:focus-visible,
+.menu-close-button:focus-visible,
+.app-menu-link:focus-visible {
+    outline: 3px solid #818cf8;
+    outline-offset: 3px;
+}
+
+.page-header {
+    grid-template-areas: "menu title spacer";
+}
+
+.menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(15, 23, 42, 0.48);
+    cursor: default;
+}
+
+.menu-backdrop[hidden],
+.app-menu[hidden] {
+    display: none;
+}
+
+.app-menu {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    width: min(320px, 86vw);
+    padding: 22px;
+    color: var(--text-color);
+    background: var(--surface-bg);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.18);
+    overflow-y: auto;
+}
+
+.app-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.app-menu-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.menu-close-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-color);
+    background: var(--surface-bg);
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.app-menu-nav {
+    display: grid;
+    gap: 10px;
+    padding-top: 20px;
+}
+
+.app-menu-link {
+    min-height: 48px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-color);
+    background: var(--score-bg);
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+body.menu-open {
+    overflow: hidden;
+}
+
+@media (max-width: 600px) {
+    .page-header {
+        grid-template-columns: 44px minmax(0, 1fr) auto;
+        grid-template-areas: "menu title spacer";
+        column-gap: 8px;
+        row-gap: 8px;
+    }
+
+    .page-header h1 {
+        font-size: clamp(1.65rem, 7vw, 2.25rem);
+        letter-spacing: -0.8px;
+    }
+
+    .page-header p {
+        font-size: 0.85rem;
+    }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-menu,
+    .menu-open-button,
+    .menu-close-button,
+    .app-menu-link {
+        transition: none !important;
+        animation: none !important;
+    }
 }
