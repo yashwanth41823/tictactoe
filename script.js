@@ -105,6 +105,112 @@ const settingsForm = document.getElementById("settings-form");
 const SETTINGS_KEY = "tic-tac-toe-settings";
 const APP_DATA_KEY = "tic-tac-toe-app-data";
 
+// A browser-local installation ID. This is not used for authentication.
+const DEVICE_ID_KEY = "tic-tac-toe-device-id";
+const deviceIdInput = document.getElementById("device-id-value");
+const copyDeviceIdButton = document.getElementById("copy-device-id-button");
+const deviceIdStatus = document.getElementById("device-id-status");
+
+// Create a UUID-like value when crypto.randomUUID() is unavailable.
+// Web Crypto's getRandomValues is preferred; Math.random is the last-resort fallback.
+function generateDeviceId() {
+    try {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+            return { id: window.crypto.randomUUID(), method: "crypto.randomUUID()" };
+        }
+    } catch (error) {
+        // Try the next available method if randomUUID exists but fails.
+    }
+
+    try {
+        if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+            const bytes = new Uint8Array(16);
+            window.crypto.getRandomValues(bytes);
+            bytes[6] = (bytes[6] & 0x0f) | 0x40; // UUID version 4
+            bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC-compatible variant
+            const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0"));
+            const id = `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`;
+            return { id, method: "crypto.getRandomValues() fallback" };
+        }
+    } catch (error) {
+        // Use the last-resort fallback if Web Crypto is unavailable or fails.
+    }
+
+    // This fallback is not cryptographically secure and must never be used as a secret.
+    const template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+    const id = template.replace(/[xy]/g, character => {
+        const random = Math.floor(Math.random() * 16);
+        return (character === "x" ? random : (random & 0x3) | 0x8).toString(16);
+    });
+    return { id, method: "non-cryptographic fallback" };
+}
+
+// Reuse the stored ID; only create a new one when none can be found.
+function initializeDeviceId() {
+    let savedId = null;
+    let storageReadable = true;
+
+    try {
+        savedId = localStorage.getItem(DEVICE_ID_KEY);
+    } catch (error) {
+        storageReadable = false;
+    }
+
+    if (savedId && savedId.trim()) {
+        deviceIdInput.value = savedId;
+        deviceIdStatus.textContent = "Using the ID saved in this browser's local storage.";
+        return;
+    }
+
+    const generated = generateDeviceId();
+    deviceIdInput.value = generated.id;
+    let storageWritable = false;
+
+    try {
+        localStorage.setItem(DEVICE_ID_KEY, generated.id);
+        storageWritable = true;
+    } catch (error) {
+        // The ID still works for this page session, but cannot persist without storage.
+    }
+
+    const fallbackNote = generated.method === "crypto.randomUUID()"
+        ? "Generated with crypto.randomUUID()."
+        : generated.method === "crypto.getRandomValues() fallback"
+            ? "crypto.randomUUID() is unavailable; generated a UUID using crypto.getRandomValues()."
+            : "Web Crypto is unavailable; generated a non-cryptographic fallback ID. Do not use it as a secret.";
+
+    if (storageWritable) {
+        deviceIdStatus.textContent = `${fallbackNote} Saved in this browser's local storage.`;
+    } else {
+        deviceIdStatus.textContent = `${fallbackNote} Browser storage could not be accessed${storageReadable ? " for saving" : ""}; this ID may change when the page reloads.`;
+    }
+}
+
+async function copyDeviceId() {
+    const value = deviceIdInput.value;
+
+    try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            await navigator.clipboard.writeText(value);
+        } else {
+            deviceIdInput.focus();
+            deviceIdInput.select();
+            const copied = document.execCommand && document.execCommand("copy");
+            if (!copied) {
+                throw new Error("Clipboard API unavailable");
+            }
+        }
+        deviceIdStatus.textContent = "Device ID copied to clipboard.";
+    } catch (error) {
+        deviceIdInput.focus();
+        deviceIdInput.select();
+        deviceIdStatus.textContent = "Automatic copying is unavailable. The ID is selected; copy it with Ctrl+C (or your device's copy command).";
+    }
+}
+
+copyDeviceIdButton.addEventListener("click", copyDeviceId);
+initializeDeviceId();
+
 // The settings used on a first visit.
 const defaultSettings = {
     theme: "light",        // "light" or "dark"

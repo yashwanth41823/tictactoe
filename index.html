@@ -283,6 +283,18 @@
                     </div>
                     <p class="setting-hint">Applies to the next new game.</p>
                 </fieldset>
+
+                <section class="setting-group device-info" aria-labelledby="device-info-heading">
+                    <h3 id="device-info-heading" class="setting-label">Device Information</h3>
+                    <p class="setting-hint">This ID helps identify this browser installation for future features. It is not a password, authentication token, or proof of identity.</p>
+                    <label class="device-id-label" for="device-id-value">Your browser installation ID</label>
+                    <div class="device-id-row">
+                        <input id="device-id-value" class="device-id-value" type="text" readonly spellcheck="false" aria-describedby="device-id-status device-id-help">
+                        <button type="button" id="copy-device-id-button" class="button button-secondary">Copy ID</button>
+                    </div>
+                    <p id="device-id-status" class="setting-hint" role="status" aria-live="polite">Checking browser storage…</p>
+                    <p id="device-id-help" class="setting-hint">Different browsers or devices may have different IDs. Clearing this browser's site data can remove the saved ID. This is a browser-local identifier, not a guaranteed physical-device identity.</p>
+                </section>
             </div>
         </section>
 

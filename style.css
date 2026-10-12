@@ -1356,3 +1356,61 @@ body.menu-open {
         animation: none !important;
     }
 }
+
+
+/* Device Information inside Settings */
+.device-info {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-color);
+}
+
+.device-info h3 {
+    margin: 0 0 8px;
+}
+
+.device-id-label {
+    display: block;
+    margin: 12px 0 6px;
+    color: var(--text-color);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.device-id-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.device-id-value {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-color);
+    background: var(--score-bg);
+    font: 0.82rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.device-id-value:focus-visible,
+#copy-device-id-button:focus-visible {
+    outline: 3px solid #818cf8;
+    outline-offset: 2px;
+}
+
+#copy-device-id-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .device-id-row {
+        flex-direction: column;
+    }
+
+    #copy-device-id-button {
+        width: 100%;
+    }
+}
